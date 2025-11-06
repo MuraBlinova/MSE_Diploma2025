@@ -18,6 +18,7 @@ npm run server #cервер (с кэшем)
 python3 -m http.server 8000
 ```
 
+### В браузере:
 ```
 http://localhost:8000/webgl-ocean/webgl_shaders_ocean.html
 ```
