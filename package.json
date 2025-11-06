@@ -1,0 +1,13 @@
+{
+  "name": "webgl-ocean",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "http-server -c-1 -p 8000",
+    "dev": "http-server -c-1 -p 8000 -o webgl-ocean/webgl_shaders_ocean.html",
+    "server": "http-server -p 8000"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
