@@ -4,7 +4,7 @@
 		<title>three.js webgl - materials - anisotropic texture filtering</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link type="text/css" rel="stylesheet" href="main.css">
+		<link type="text/css" rel="stylesheet" href="./main.css">
 		<style>
 			body {
 				color: #444;
@@ -119,7 +119,7 @@
 
 				const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
-				const texture1 = textureLoader.load( 'textures/crate.gif' );
+				const texture1 = textureLoader.load( './textures/crate.gif' );
 				const material1 = new THREE.MeshPhongMaterial( { color: 0xffffff, map: texture1 } );
 
 				texture1.colorSpace = THREE.SRGBColorSpace;
@@ -127,7 +127,7 @@
 				texture1.wrapS = texture1.wrapT = THREE.RepeatWrapping;
 				texture1.repeat.set( 512, 512 );
 
-				const texture2 = textureLoader.load( 'textures/crate.gif' );
+				const texture2 = textureLoader.load( './textures/crate.gif' );
 				const material2 = new THREE.MeshPhongMaterial( { color: 0xffffff, map: texture2 } );
 
 				texture2.colorSpace = THREE.SRGBColorSpace;

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSE Diploma 2025 - Three.js Projects</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .project-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        
+        .project-card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .project-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .project-card .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .project-card .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 50px;
+            font-size: 0.9em;
+        }
+        
+        .footer a {
+            color: white;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MSE Diploma 2025 - Three.js Projects</h1>
+        
+        <div class="projects-grid">
+            <div class="project-card">
+                <h2>🌊 Ocean Shader (Custom)</h2>
+                <p>Интерактивная визуализация океана с настраиваемыми параметрами воды и неба. Кастомная версия с упрощенными контролами.</p>
+                <a href="webgl-ocean/webgl_shaders_ocean.html" class="btn">Открыть проект →</a>
+            </div>
+            
+            <div class="project-card">
+                <h2>🌊 Ocean Shader (Original)</h2>
+                <p>Оригинальная версия Three.js океана с полными контролами неба и воды, включая плавающий куб.</p>
+                <a href="treeJS-examples/webgl_shaders_ocean.html" class="btn">Открыть проект →</a>
+            </div>
+            
+            <div class="project-card">
+                <h2>🎨 Texture Anisotropy</h2>
+                <p>Демонстрация анизотропной фильтрации текстур в WebGL для улучшения качества рендеринга.</p>
+                <a href="treeJS-examples/webgl_materials_texture_anisotropy.html" class="btn">Открыть проект →</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>ITMO University | Fall 2025</p>
+            <p><a href="https://github.com/MuraBlinova/MSE_Diploma2025" target="_blank">View on GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>
