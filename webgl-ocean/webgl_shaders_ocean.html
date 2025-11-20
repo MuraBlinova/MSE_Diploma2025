@@ -36,6 +36,7 @@
 			let container, stats;
 			let camera, scene, renderer;
 			let controls, water, sun;
+			let normalsPlane, heightMapPlane;
 
 			init();
 
@@ -160,9 +161,73 @@
 
 				const waterUniforms = water.material.uniforms;
 
+				const normalsGeometry = new THREE.PlaneGeometry( 10000, 10000 );
+				const normalsTexture = new THREE.TextureLoader().load( './textures/waternormals.jpg', function ( texture ) {
+					texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+				} );
+				const normalsMaterial = new THREE.MeshBasicMaterial( {
+					map: normalsTexture,
+					transparent: true,
+					opacity: 0.5,
+					depthWrite: false
+				} );
+				normalsPlane = new THREE.Mesh( normalsGeometry, normalsMaterial );
+				normalsPlane.rotation.x = - Math.PI / 2;
+				normalsPlane.position.y = 0.1;
+				normalsPlane.visible = false;
+				
+				normalsTexture.repeat.set( waterUniforms.size.value, waterUniforms.size.value );
+				
+				scene.add( normalsPlane );
+
+				// const heightMapGeometry = new THREE.PlaneGeometry( 10000, 10000, 256, 256 );
+				// const heightMapTexture = new THREE.TextureLoader().load( './textures/waternormals.jpg', function ( texture ) {
+				// 	texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+				// } );
+				// const heightMapMaterial = new THREE.MeshStandardMaterial( {
+				// 	displacementMap: heightMapTexture,
+				// 	displacementScale: 50 / waterUniforms.size.value,
+				// 	color: 0x4488ff,
+				// 	transparent: true,
+				// 	opacity: 0.7,
+				// 	wireframe: false,
+				// 	side: THREE.DoubleSide
+				// } );
+				// heightMapPlane = new THREE.Mesh( heightMapGeometry, heightMapMaterial );
+				// heightMapPlane.rotation.x = - Math.PI / 2;
+				// heightMapPlane.position.y = 0.2;
+				// heightMapPlane.visible = false;
+				
+				// heightMapTexture.repeat.set( waterUniforms.size.value, waterUniforms.size.value );
+				
+				// scene.add( heightMapPlane );
+
 				const folderWater = gui.addFolder( 'Water' );
 				folderWater.add( waterUniforms.distortionScale, 'value', 0, 1000, 0.1 ).name( 'distortionScale' );
-				folderWater.add( waterUniforms.size, 'value', 0.1, 1000, 0.1 ).name( 'size' );
+				folderWater.add( waterUniforms.size, 'value', 0.1, 1000, 0.1 ).name( 'size' ).onChange( function ( value ) {
+					normalsTexture.repeat.set( value, value );
+					// heightMapTexture.repeat.set( value, value );
+					// heightMapPlane.material.displacementScale = waterSettings.heightScale / value;
+				} );
+				
+				const waterSettings = {
+					showNormals: false,
+					showHeightMap: false,
+					heightScale: 50
+				};
+				
+				folderWater.add( waterSettings, 'showNormals' ).name( 'Show Water Normals' ).onChange( function ( value ) {
+					normalsPlane.visible = value;
+				} );
+				
+				// folderWater.add( waterSettings, 'showHeightMap' ).name( 'Show Height Map' ).onChange( function ( value ) {
+				// 	heightMapPlane.visible = value;
+				// } );
+				
+				// folderWater.add( waterSettings, 'heightScale', 0, 200, 1 ).name( 'Height Scale' ).onChange( function ( value ) {
+				// 	heightMapPlane.material.displacementScale = value / waterUniforms.size.value;
+				// } );
+				
 				folderWater.open();
 				
 				window.addEventListener( 'resize', onWindowResize );
