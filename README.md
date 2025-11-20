@@ -21,4 +21,5 @@ python3 -m http.server 8000
 ### В браузере:
 ```
 http://localhost:8000/webgl-ocean/webgl_shaders_ocean.html
+https://murablinova.github.io/MSE_Diploma2025/
 ```
