@@ -129,7 +129,7 @@ var DEMO =
 
 		// Initialize UI
 		var gui = new dat.GUI();
-		dat.GUI.toggleHide();
+		// dat.GUI.toggleHide();
 
 		gui.add( this.ms_Ocean, "size", 10, 2000 ).onChange( function( v ) {
 			this.object.size = v;
@@ -149,6 +149,7 @@ var DEMO =
 			this.object.changed = true;
 		} );
 		gui.add( DEMO.ms_Ocean.materialOcean, "wireframe" );
+		
 
 		var demo = this;
 
