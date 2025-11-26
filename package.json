@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Fast Fourier Transform ocean rendering for Three.js",
   "scripts": {
-    "dev": "npx http-server -p 8000 -o"
+    "start": "http-server -c-1 -p 8000",
+    "dev": " http-server -c-1 -p 8000 -o",
+    "server": "http-server -p 8000"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
