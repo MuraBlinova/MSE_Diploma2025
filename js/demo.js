@@ -153,7 +153,7 @@ var DEMO =
 			opacity: 1.0
 		});
 		this.debugNormalMapMesh = new THREE.Mesh(debugNormalGeometry, debugNormalMaterial);
-		this.debugNormalMapMesh.position.set(0, 30, 0);
+		this.debugNormalMapMesh.position.set(0, 50, 0);
 		this.debugNormalMapMesh.rotation.x = -Math.PI / 2;
 		this.debugNormalMapMesh.visible = false;
 		this.ms_Scene.add(this.debugNormalMapMesh);
