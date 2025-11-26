@@ -24,6 +24,11 @@ var DEMO =
 		}
 	},
 
+	heightMapPlane : false,
+	normalMapPlane : false,
+	showDebugNormalMap: false,
+	debugNormalMapMesh: null,
+
 	Initialize : function () {
 
 		this.ms_Renderer = new THREE.WebGLRenderer();
@@ -122,6 +127,37 @@ var DEMO =
 			RESOLUTION : res
 		} );
 
+		// --- Debug normal map mesh ---
+		var debugNormalGeometry = new THREE.PlaneBufferGeometry(gsize, gsize, gres, gres);
+		var debugNormalMaterial = new THREE.ShaderMaterial({
+			uniforms: {
+				normalMap: { value: this.ms_Ocean.normalMapFramebuffer.texture }
+			},
+			vertexShader: `
+				varying vec2 vUv;
+				void main() {
+					vUv = uv;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+				}
+			`,
+			fragmentShader: `
+				uniform sampler2D normalMap;
+				varying vec2 vUv;
+				void main() {
+					vec3 normal = texture2D(normalMap, vUv).xyz;
+					normal = normal * 0.5 + 0.5;
+					gl_FragColor = vec4(normal, 0.7);
+				}
+			`,
+			transparent: false,
+			opacity: 1.0
+		});
+		this.debugNormalMapMesh = new THREE.Mesh(debugNormalGeometry, debugNormalMaterial);
+		this.debugNormalMapMesh.position.set(0, 30, 0);
+		this.debugNormalMapMesh.rotation.x = -Math.PI / 2;
+		this.debugNormalMapMesh.visible = false;
+		this.ms_Scene.add(this.debugNormalMapMesh);
+
 		this.LoadSkyBox();
 	},
 
@@ -144,12 +180,14 @@ var DEMO =
 			this.object.windY = v;
 			this.object.changed = true;
 		} );
-		gui.add( this.ms_Ocean, "exposure", 0.0, 0.5 ).onChange( function ( v ) {
-			this.object.exposure = v;
-			this.object.changed = true;
-		} );
-		gui.add( DEMO.ms_Ocean.materialOcean, "wireframe" );
+		// gui.add( this.ms_Ocean, "exposure", 0.0, 0.5 ).onChange( function ( v ) {
+		// 	this.object.exposure = v;
+		// 	this.object.changed = true;
+		// } );
+		// gui.add( DEMO.ms_Ocean.materialOcean, "wireframe" );
 		
+		gui.add(this, 'showDebugNormalMap').name('Show Normal Map');
+
 
 		var demo = this;
 
@@ -302,6 +340,12 @@ var DEMO =
 
 		// Update ocean data
 		this.ms_Ocean.update();
+
+		// Update normal map
+		if (this.debugNormalMapMesh) {
+			this.debugNormalMapMesh.material.uniforms.normalMap.value = this.ms_Ocean.normalMapFramebuffer.texture;
+			this.debugNormalMapMesh.visible = this.showDebugNormalMap;
+		}
 		
 		this.ms_Controls.update();
 		this.Display();
