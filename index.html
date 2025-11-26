@@ -56,6 +56,7 @@
 	</head>
 	<body>
 
+		<script src="js/libs/stats.min.js"></script>
 		<script src="js/libs/three.min.js"></script>		
 		<script src="js/libs/dat.gui.min.js"></script>
 		<script src="js/libs/jquery-2.1.4.min.js"></script>
@@ -136,14 +137,20 @@
 			
 			DEMO.Initialize();
 
+			var stats = new Stats();
+			stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+			document.body.appendChild(stats.dom);
+
 			WINDOW.ResizeCallback = function ( inWidth, inHeight ) { DEMO.Resize( inWidth, inHeight ); };
 			DEMO.Resize( WINDOW.ms_Width, WINDOW.ms_Height );
 
 			var render = function () {
+				stats.begin();
 
 				requestAnimationFrame( render );
 				DEMO.Update();
 
+				stats.end();
 			};
 
 			render();
