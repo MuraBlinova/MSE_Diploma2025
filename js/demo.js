@@ -10,7 +10,6 @@ var DEMO =
 	ms_Controls : null,
 	ms_Ocean : null,
 	ms_Environment : "night",
-	ms_Raining : false,
 
 	ms_Commands : {
 		states : {
@@ -71,7 +70,7 @@ var DEMO =
 		
 		var log = function( message, type, timeout ) {
 			console.log( message );
-			messg( message, type, timeout );
+			// messg( message, type, timeout );
 		}
 		
 		var delay = 1500;
@@ -96,44 +95,6 @@ var DEMO =
 		this.ms_MainDirectionalLight = new THREE.DirectionalLight( 0xffffff, 1.5 );
 		this.ms_MainDirectionalLight.position.set( -0.2, 0.5, 1 );
 		this.ms_Scene.add( this.ms_MainDirectionalLight );
-
-
-		// Add rain
-		{
-			var size = 128;
-			var rainTexture = new THREE.Texture();
-			rainTexture.generateMipmaps = false;
-			rainTexture.magFilter = THREE.LinearFilter;
-			rainTexture.minFilter = THREE.LinearFilter;
-			this.ms_ImageLoader.load( 'img/water-drop.png', function ( image ) {
-					rainTexture.image = image;
-					rainTexture.needsUpdate = true;
-			} );
-
-			var rainShader = THREE.ShaderLib['rain'];
-
-			var rainMaterial = new THREE.ShaderMaterial({
-				fragmentShader: rainShader.fragmentShader,
-				vertexShader: rainShader.vertexShader,
-				uniforms: rainShader.uniforms,
-				transparent: true,
-				depthWrite: false
-			});
-			rainMaterial.uniforms.texture.value = rainTexture;
-
-			this.ms_RainGeometry = new THREE.Geometry();
-			for ( i = 0; i < 100; i++ )
-			{
-				var vertex = new THREE.Vector3();
-				vertex.x = Math.random() * 2.0 * size - size;
-				vertex.y = Math.random() * 2.0 * size - size;
-				vertex.z = Math.random() * size - size * 0.5;
-				this.ms_RainGeometry.vertices.push( vertex );
-			}
-			this.ms_Rain = new THREE.Points( this.ms_RainGeometry, rainMaterial );
-			this.ms_Camera.add( this.ms_Rain );
-			this.ms_Rain.position.setZ( - size * 0.75 ) ;
-		}
 
 		// Initialize Clouds
 		this.ms_CloudShader = new CloudShader( this.ms_Renderer, 512 );
@@ -162,7 +123,6 @@ var DEMO =
 		} );
 
 		this.LoadSkyBox();
-		this.LoadMountains();
 	},
 
 	InitGui : function InitGui() {
@@ -230,52 +190,6 @@ var DEMO =
 
 	},
 
-	LoadMountains : function LoadSkyBox() {
-
-		var demo = this;
-
-		var mountainTexture = new THREE.Texture();
-		mountainTexture.generateMipmaps = false;
-		mountainTexture.magFilter = THREE.LinearFilter;
-		mountainTexture.minFilter = THREE.LinearFilter;
-		this.ms_ImageLoader.load( 'img/mountains.png', function ( image ) {
-				mountainTexture.image = image;
-				mountainTexture.needsUpdate = true;
-		} );
-
-
-		var mountainsMaterial = new THREE.MeshBasicMaterial( {
-			map: mountainTexture,
-			transparent: true,
-			side: THREE.BackSide,
-			depthWrite: false
-		} );
-
-		var addMountain = function addMountain( size ) {
-
-			var moutains = new THREE.Mesh(
-				new THREE.CylinderGeometry( size, size, 35000, 32, 1, true ),
-				mountainsMaterial
-			);
-			moutains.position.y = 10000;
-			demo.ms_Scene.add( moutains );
-
-		} ;
-
-		// Add twice with different size in order to avoid some artifacts on the reflection
-		addMountain( 120000 );
-		addMountain( 150000 );
-
-		// Add a black cylinder to hide the skybox under the water
-		var cylinder = new THREE.Mesh(
-			new THREE.CylinderGeometry( 150000, 150000, 150000, 32, 1, true ),
-			new THREE.MeshBasicMaterial( { color: new THREE.Color( 1, 1, 1 ), side: THREE.BackSide } )
-		);
-		cylinder.position.y = -80000;
-		demo.ms_Scene.add( cylinder );
-
-	},
-
 	LoadSkyBox : function LoadSkyBox() {
 
 		var cubeShader = THREE.ShaderLib['cube'];
@@ -313,56 +227,12 @@ var DEMO =
 		var textureExt = ".jpg";
 		var directionalLightPosition = null;
 		var directionalLightColor = null;
-		var raining = false;
 
 		textureName = 'sky';
 		directionalLightPosition = new THREE.Vector3( -0.5, 0.5, -0.6 );
 		directionalLightColor = new THREE.Color( 1, 0.95, 0.9 );
 
-		switch( key ) {
-			case 'night':
-				textureName = 'grimmnight';
-				directionalLightPosition = new THREE.Vector3( -0.3, 0.3, 1 );
-				directionalLightColor = new THREE.Color( 1, 1, 1 );
-				raining = true;
-				break;
-			case 'morning':
-				textureName = 'clouds';
-				directionalLightPosition = new THREE.Vector3( -1, 0.5, 0.8 );
-				directionalLightColor = new THREE.Color( 1, 0.95, 0.8 );
-				break;
-			case 'day':
-				textureName = 'sky';
-				directionalLightPosition = new THREE.Vector3( -0.5, 0.5, -0.6 );
-				directionalLightColor = new THREE.Color( 1, 0.95, 0.9 );
-				break;
-			case 'cloudy':
-				textureName = 'miramar';
-				directionalLightPosition = new THREE.Vector3( 0.3, 1.0, 0.5 );
-				directionalLightColor = new THREE.Color( 0.9, 0.95, 1 );
-				raining = true;
-				break;
-			case 'sunset':
-				textureName = 'sunset';
-				directionalLightPosition = new THREE.Vector3( -0.7, 0.2, -1 );
-				directionalLightColor = new THREE.Color( 1, 0.8, 0.5 );
-				break;
-			case 'interstellar':
-				textureName = 'interstellar';
-				directionalLightPosition = new THREE.Vector3( -0.7, 1.0, -0.4 );
-				directionalLightColor = new THREE.Color( 0.8, 1.0, 0.95 );
-				break;
-			case 'apocalypse':
-				textureName = 'violent_days';
-				directionalLightPosition = new THREE.Vector3( 1, 0.3, 1 );
-				directionalLightColor = new THREE.Color( 1, 0.85, 0.3 );
-				break;
-			default:
-				return;
-		};
-
 		this.ms_Environment = key;
-		this.ms_Raining = raining;
 		this.ms_MainDirectionalLight.position.copy( directionalLightPosition );
 		this.ms_MainDirectionalLight.color.copy( directionalLightColor );
 		this.ms_Ocean.materialOcean.uniforms.u_sunDirection.value.copy( this.ms_MainDirectionalLight.position );
@@ -422,30 +292,9 @@ var DEMO =
 		this.ms_Ocean.deltaTime = ( currentTime - lastTime ) / 1000 || 0.0;
 		lastTime = currentTime;
 
-		// Update rain
-		if( this.ms_Raining ) {
-			var seed = 1;
-			var fastRandom = function fastRandom() {
-				// https://stackoverflow.com/questions/521295/javascript-random-seeds
-				var x = Math.sin( seed++ ) * 10000;
-				return x - Math.floor( x );
-			}
-			for( i in this.ms_RainGeometry.vertices )
-			{
-				var speed = 4.0;
-				this.ms_RainGeometry.vertices[i].y -= fastRandom() * speed + speed;
-				if( this.ms_RainGeometry.vertices[i].y < -50 )
-					this.ms_RainGeometry.vertices[i].y = 50;
-			}
-			this.ms_Rain.rotation.set( -this.ms_Camera.rotation.x, -this.ms_Camera.rotation.y, -this.ms_Camera.rotation.z, "ZYX" );
-			this.ms_RainGeometry.verticesNeedUpdate = true;
-		}
-
 		// Render ocean reflection
 		this.ms_Camera.remove( this.ms_Rain );
 		this.ms_Ocean.render();
-		if( this.ms_Raining )
-			this.ms_Camera.add( this.ms_Rain );
 
 		// Updade clouds
 		this.ms_CloudShader.update();
