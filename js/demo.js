@@ -127,7 +127,7 @@ var DEMO =
 			RESOLUTION : res
 		} );
 
-		// --- Debug normal map mesh ---
+		// Debug normal map mesh
 		var debugNormalGeometry = new THREE.PlaneBufferGeometry(gsize, gsize, gres, gres);
 		var debugNormalMaterial = new THREE.ShaderMaterial({
 			uniforms: {
@@ -149,13 +149,16 @@ var DEMO =
 					gl_FragColor = vec4(normal, 0.7);
 				}
 			`,
-			transparent: false,
-			opacity: 1.0
+
+			transparent: true,
+			opacity: 0.7,
 		});
 		this.debugNormalMapMesh = new THREE.Mesh(debugNormalGeometry, debugNormalMaterial);
 		this.debugNormalMapMesh.position.set(0, 50, 0);
 		this.debugNormalMapMesh.rotation.x = -Math.PI / 2;
 		this.debugNormalMapMesh.visible = false;
+		this.debugNormalMapMesh.renderOrder = -1; // Render first
+
 		this.ms_Scene.add(this.debugNormalMapMesh);
 
 		this.LoadSkyBox();
