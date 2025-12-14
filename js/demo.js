@@ -187,7 +187,7 @@ var DEMO =
 		// 	this.object.exposure = v;
 		// 	this.object.changed = true;
 		// } );
-		// gui.add( DEMO.ms_Ocean.materialOcean, "wireframe" );
+		gui.add( DEMO.ms_Ocean.materialOcean, "wireframe" );
 		
 		gui.add(this, 'showDebugNormalMap').name('Show Normal Map');
 
