@@ -56,7 +56,7 @@
 	</head>
 	<body>
 
-		<script src="js/libs/stats.min.js"></script>
+		<!-- <script src="js/libs/stats.min.js"></script> -->
 		<script src="js/libs/three.min.js"></script>		
 		<script src="js/libs/dat.gui.min.js"></script>
 		<script src="js/libs/jquery-2.1.4.min.js"></script>
@@ -137,21 +137,58 @@
 			
 			DEMO.Initialize();
 
-			var stats = new Stats();
-			stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-			document.body.appendChild(stats.dom);
+
+			var gpuTimerDiv = document.createElement('div');
+			gpuTimerDiv.style.position = 'absolute';
+			gpuTimerDiv.style.left = '10px';
+			gpuTimerDiv.style.top = '10px';
+			gpuTimerDiv.style.background = 'rgba(0,0,0,0.7)';
+			gpuTimerDiv.style.color = '#0f0';
+			gpuTimerDiv.style.fontFamily = 'monospace';
+			gpuTimerDiv.style.fontSize = '18px';
+			gpuTimerDiv.style.padding = '6px 12px';
+			gpuTimerDiv.style.zIndex = 1000;
+			gpuTimerDiv.innerText = 'GPU: -- ms';
+			document.body.appendChild(gpuTimerDiv);
 
 			WINDOW.ResizeCallback = function ( inWidth, inHeight ) { DEMO.Resize( inWidth, inHeight ); };
 			DEMO.Resize( WINDOW.ms_Width, WINDOW.ms_Height );
 
-			var render = function () {
-				stats.begin();
 
-				requestAnimationFrame( render );
+			// WebGL GPU Timer (EXT_disjoint_timer_query)
+			var gl = DEMO.ms_Renderer.getContext();
+			var ext = gl.getExtension('EXT_disjoint_timer_query');
+			var timerQuery = null;
+			var gpuTime = 0;
+			var pending = false;
+
+			function render() {
+				if (ext && !pending) {
+					timerQuery = ext.createQueryEXT();
+					ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, timerQuery);
+				}
+
+				requestAnimationFrame(render);
 				DEMO.Update();
 
-				stats.end();
-			};
+				if (ext && timerQuery) {
+					ext.endQueryEXT(ext.TIME_ELAPSED_EXT);
+					pending = true;
+				}
+
+				if (ext && pending) {
+					var available = ext.getQueryObjectEXT(timerQuery, ext.QUERY_RESULT_AVAILABLE_EXT);
+					var disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
+					if (available && !disjoint) {
+						gpuTime = ext.getQueryObjectEXT(timerQuery, ext.QUERY_RESULT_EXT) / 1e6; // ns -> ms
+						// gpuTimerDiv.innerText = 'GPU: ' + gpuTime.toFixed(2) + ' ms (time per frame)';
+						gpuTimerDiv.innerText = 'GPU: ' + gpuTime.toFixed(2) + ' ms\n FPS: ' + (1000 / gpuTime).toFixed(1);
+						ext.deleteQueryEXT(timerQuery);
+						timerQuery = null;
+						pending = false;
+					}
+				}
+			}
 
 			render();
 
