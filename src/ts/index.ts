@@ -40,7 +40,7 @@ fpsOverlay.textContent = "FPS: ...";
 document.body.appendChild(fpsOverlay);
 
 import { Scene } from "@babylonjs/core/scene";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import "@babylonjs/core/Loading/loadingScreen";
 import { WebGPUEngine } from "@babylonjs/core/Engines";
@@ -182,25 +182,29 @@ const ground = MeshBuilder.CreateGround(
 ground.material = groundMaterial;
 ground.position.y = -2;
 
-for (let x = -radius; x <= radius; x++) {
-    for (let z = -radius; z <= radius; z++) {
-        const water = MeshBuilder.CreateGround(
-            "water",
-            {
-                width: tileSize,
-                height: tileSize,
-                subdivisions: textureSize
-            },
-            scene
-        );
-        water.material = waterMaterial;
+// Создаём одну большую сетку воды вместо 49 маленьких плиток
+const waterGridCount = radius * 2 + 1; // 7
+const totalSize = tileSize * waterGridCount; // 70 метров
+const totalSubdivisions = textureSize * waterGridCount; // 896
 
-        waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
-        waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
-        water.position.x = x * tileSize;
-        water.position.z = z * tileSize;
-    }
-}
+const water = MeshBuilder.CreateGround(
+    "water",
+    {
+        width: totalSize,
+        height: totalSize,
+        subdivisions: totalSubdivisions
+    },
+    scene
+);
+water.material = waterMaterial;
+
+// Устанавливаем uniform'ы для перехода на мировые координаты
+waterMaterial.setFloat("tileSize", totalSize);
+waterMaterial.setVector2("worldOffset", new Vector2(0, 0));
+waterMaterial.setFloat("gridScale", totalSize / totalSubdivisions);
+
+waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
+waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
 
 Effect.ShadersStore[`PostProcess1FragmentShader`] = postProcessCode;
 const postProcess = new PostProcess(

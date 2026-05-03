@@ -12,6 +12,8 @@ uniform sampler2D gradientMap;
 uniform sampler2D displacementMap;
 
 uniform float tileSize;
+uniform vec2 worldOffset;
+uniform float gridScale;
 
 varying vec3 vNormalW;
 varying vec3 vPositionW;
@@ -28,29 +30,33 @@ vec3 sampleHeightAndGradient(vec2 point) {
     return heightAndGradient * scalingFactor * 0.5;
 }
 
+vec2 worldToTexUV(vec2 worldXZ) {
+    return (worldXZ - worldOffset) / tileSize + 0.5;
+}
+
 void main() {
-    scalingFactor = 1 / tileSize;
+    scalingFactor = 1.0 / tileSize;
 
-    vec3 waterPosition = position;
+    vec2 worldXZ = position.xz * gridScale + worldOffset;
+    float baseY = position.y;
 
-    vec2 displacement = texture(displacementMap, uv).rg * scalingFactor * 1.0;
-    waterPosition.x += displacement.x;
-    waterPosition.z += displacement.y;
+    vec2 texUV = worldToTexUV(worldXZ);
 
-    vec3 heightAndGradient = sampleHeightAndGradient(uv);
-    waterPosition.y += heightAndGradient.x;
-    vec3 normal = normalize(vec3(-heightAndGradient.y, 1.0, -heightAndGradient.z));
+    vec2 displacement = texture(displacementMap, texUV).rg * scalingFactor * 1.0;
+    vec2 displacedXZ = worldXZ + displacement;
 
-    // normal using central difference
-    /*float epsilon = 0.001;
-    vec3 tangent1 = normalize(vec3(uv.x + epsilon, sampleHeightAndGradient(uv + vec2(epsilon, 0.0)).x, uv.y) - vec3(uv.x - epsilon, sampleHeightAndGradient(uv - vec2(epsilon, 0.0)).x, uv.y));
-    vec3 tangent2 = normalize(vec3(uv.x, sampleHeightAndGradient(uv + vec2(0.0, epsilon)).x, uv.y + epsilon) - vec3(uv.x, sampleHeightAndGradient(uv - vec2(0.0, epsilon)).x, uv.y - epsilon));
-    vec3 normal = -normalize(cross(tangent1, tangent2));*/
+    vec3 heightAndGradient = sampleHeightAndGradient(texUV);
+    float waveHeight = heightAndGradient.x;
+
+    vec3 waterPosition = vec3(displacedXZ.x, baseY + waveHeight, displacedXZ.y);
+
+    float gradScale = tileSize;
+    vec3 normal = normalize(vec3(-heightAndGradient.y * gradScale, 1.0, -heightAndGradient.z * gradScale));
 
     vPositionW = vec3(world * vec4(waterPosition, 1.0));
     vNormalW = vec3(world * vec4(normal, 0.0));
     vPositionClip = worldViewProjection * vec4(waterPosition, 1.0);
-    vUV = uv;
+    vUV = texUV;
 
     gl_Position = vPositionClip;
 }
