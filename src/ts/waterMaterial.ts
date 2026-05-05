@@ -103,31 +103,29 @@ export class WaterMaterial extends ShaderMaterial {
             attributes: ["position", "normal", "uv"],
             uniforms: [
                 "world", "worldView", "worldViewProjection", "view", "projection",
-                "cameraPositionW", "lightDirection", "tileSize", "worldTexSize",
-                "worldOffset", "gridScale",
+                "cameraPositionW", "lightDirection", "time",
                 "showNormalMapOverlay"
             ],
             samplers: [
-                "heightMap", "gradientMap", "displacementMap", "reflectionSampler", "depthSampler", "textureSampler",
+                "heightMap", "displacementMap",
+                "reflectionSampler", "depthSampler", "textureSampler",
                 "normalMapOverlay"
             ]
         });
         this.depthRenderer = scene.enableDepthRenderer(scene.activeCamera, false, true);
         this.setTexture("depthSampler", this.depthRenderer.getDepthMap());
 
-        // create render target texture
-        this.screenRenderTarget = new RenderTargetTexture("screenTexture", { ratio: engine.getRenderWidth() / engine.getRenderHeight() }, scene);
+        this.screenRenderTarget = new RenderTargetTexture(
+            "screenTexture",
+            { ratio: engine.getRenderWidth() / engine.getRenderHeight() },
+            scene
+        );
         scene.customRenderTargets.push(this.screenRenderTarget);
-
         this.setTexture("textureSampler", this.screenRenderTarget);
 
         this.reflectionTexture = new CubeTexture("", scene, null, false, [
-            TropicalSunnyDay_px,
-            TropicalSunnyDay_py,
-            TropicalSunnyDay_pz,
-            TropicalSunnyDay_nx,
-            TropicalSunnyDay_ny,
-            TropicalSunnyDay_nz
+            TropicalSunnyDay_px, TropicalSunnyDay_py, TropicalSunnyDay_pz,
+            TropicalSunnyDay_nx, TropicalSunnyDay_ny, TropicalSunnyDay_nz
         ]);
         this.setTexture("reflectionSampler", this.reflectionTexture);
 
@@ -153,7 +151,6 @@ export class WaterMaterial extends ShaderMaterial {
         this.setupTextureWrapping(this.displacementMap);
 
         this.setTexture("heightMap", this.heightMap);
-        this.setTexture("gradientMap", this.gradientMap);
         this.setTexture("displacementMap", this.displacementMap);
     }
 
@@ -162,42 +159,13 @@ export class WaterMaterial extends ShaderMaterial {
         texture.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
     }
 
-    public setWorldOffset(offset: Vector2): void {
-        const effect = this.getEffect();
-        if (effect) {
-            effect.setFloat2("worldOffset", offset.x, offset.y);
-        }
-    }
-
-    public setWorldTexSize(size: number): void {
-        (this as any).worldTexSize = size;
-        this.setFloat("worldTexSize", size);
-    }
-
-    public setGridScale(scale: number): void {
-        this.setFloat("gridScale", scale);
-    }
-
-    public setVector2(name: string, value: Vector2): ShaderMaterial {
-        const effect = this.getEffect();
-        if (effect) {
-            effect.setFloat2(name, value.x, value.y);
-        }
-        return this;
-    }
-
-    /**
-     * Update the material with the new state of the ocean simulation.
-     * IFFT will be used to compute the height map, gradient map and displacement map for the current time.
-     * @param deltaSeconds The time elapsed since the last update in seconds
-     * @param lightDirection The direction of the light in the scene
-     */
     public update(deltaSeconds: number, lightDirection: Vector3) {
         this.elapsedSeconds += deltaSeconds;
         this.dynamicSpectrum.generate(this.elapsedSeconds);
 
-        const allNonWaterMeshes = this.getScene().meshes.filter((mesh) => mesh.material !== this);
-
+        const allNonWaterMeshes = this.getScene().meshes.filter(
+            (mesh) => mesh.material !== this
+        );
         this.depthRenderer.getDepthMap().renderList = allNonWaterMeshes;
         this.screenRenderTarget.renderList = allNonWaterMeshes;
 
@@ -208,14 +176,15 @@ export class WaterMaterial extends ShaderMaterial {
         const activeCamera = this.getScene().activeCamera;
         if (activeCamera === null) throw new Error("No active camera found");
         this.setVector3("cameraPositionW", activeCamera.globalPosition);
-
-        this.setFloat("worldTexSize", this.worldTexSize);
-        this.setFloat("tileSize", this.tileSize);
-
+        this.setFloat("time", this.elapsedSeconds);
         this.setVector3("lightDirection", lightDirection);
     }
 
-    public dispose(forceDisposeEffect?: boolean, forceDisposeTextures?: boolean, notBoundToMesh?: boolean) {
+    public dispose(
+        forceDisposeEffect?: boolean,
+        forceDisposeTextures?: boolean,
+        notBoundToMesh?: boolean
+    ) {
         this.dynamicSpectrum.dispose();
         this.ifft.dispose();
         this.heightMap.dispose();

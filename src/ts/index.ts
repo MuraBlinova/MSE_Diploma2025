@@ -38,7 +38,7 @@ fpsOverlay.textContent = "FPS: ...";
 document.body.appendChild(fpsOverlay);
 
 import { Scene } from "@babylonjs/core/scene";
-import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import "@babylonjs/core/Loading/loadingScreen";
 import { WebGPUEngine } from "@babylonjs/core/Engines";
@@ -86,27 +86,6 @@ normalCanvas.style.zIndex = "1001";
 document.body.appendChild(normalCanvas);
 const normalCtx = normalCanvas.getContext("2d");
 
-// FPS counter (console + overlay)
-let lastFpsPrint = performance.now();
-let frameCount = 0;
-let lastFps = 0;
-
-// WebGPU GPUQuerySet (timing)
-
-// WebGPU types fallback for TS
-
-function startRenderLoop() {
-    engine.runRenderLoop(() => {
-        scene.render();
-    });
-}
-
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    engine.resize(true);
-});
-
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
 import { Effect } from "@babylonjs/core/Materials/effect";
@@ -141,11 +120,14 @@ const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), s
 
 const textureSize = 128;
 const tileSize = 10;
+const waterGridCount = 7;
+const totalSize = tileSize * waterGridCount;
+const totalSubdivisions = textureSize * waterGridCount;
 
 const depthRenderer = scene.enableDepthRenderer(camera, false, true);
 const initialSpectrum = new PhillipsSpectrum(textureSize, tileSize, engine);
+const waterMaterial = new WaterMaterial("water", initialSpectrum, scene, engine);
 
-const waterMaterial = new WaterMaterial("waterяяMaterial", initialSpectrum, scene, engine);
 waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
 waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
 
@@ -157,12 +139,6 @@ skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
 skyboxMaterial.disableLighting = true;
 skybox.material = skyboxMaterial;
 
-const radius = 3;
-
-const waterGridCount = radius * 2 + 1;
-const totalSize = tileSize * waterGridCount;
-const totalSubdivisions = textureSize * waterGridCount;
-
 const water = MeshBuilder.CreateGround(
     "water",
     {
@@ -173,14 +149,6 @@ const water = MeshBuilder.CreateGround(
     scene
 );
 water.material = waterMaterial;
-
-waterMaterial.setFloat("tileSize", tileSize);
-waterMaterial.setWorldTexSize(tileSize);
-waterMaterial.setWorldOffset(new Vector2(0, 0));
-waterMaterial.setFloat("gridScale", totalSize / totalSubdivisions);
-
-waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
-waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
 
 Effect.ShadersStore[`PostProcess1FragmentShader`] = postProcessCode;
 const postProcess = new PostProcess(
@@ -209,21 +177,6 @@ scene.executeWhenReady(() => {
     engine.loadingScreen.hideLoadingUI();
     scene.registerBeforeRender(() => updateScene());
 
-    // Color map of normals (gradientMap) in bottom right corner (HTML overlay)
-    const normalCanvas = document.createElement("canvas");
-    const normalSize = 200;
-    normalCanvas.width = normalSize;
-    normalCanvas.height = normalSize;
-    normalCanvas.style.position = "fixed";
-    normalCanvas.style.right = "10px";
-    normalCanvas.style.bottom = "10px";
-    normalCanvas.style.border = "2px solid #333";
-    normalCanvas.style.background = "#111";
-    normalCanvas.style.zIndex = "1001";
-    document.body.appendChild(normalCanvas);
-    const normalCtx = normalCanvas.getContext("2d");
-
-    // FPS counter (console + overlay)
     let lastFpsPrint = performance.now();
     let frameCount = 0;
     let lastFps = 0;
@@ -249,7 +202,11 @@ scene.executeWhenReady(() => {
     }
     let queryBuffer: GPUBuffer | null = null;
     if (gpuDevice && gpuQuerySet) {
-        queryBuffer = gpuDevice.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_READ, mappedAtCreation: false });
+        queryBuffer = gpuDevice.createBuffer({
+            size: 16,
+            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_READ,
+            mappedAtCreation: false
+        });
     }
     let gpuTimeMs = 0;
 
@@ -300,7 +257,6 @@ scene.executeWhenReady(() => {
             })();
         }
 
-        // WebGPU timestamp end
         if (gpuDevice && gpuQuerySet && queryBuffer && gpuDevice.createCommandEncoder) {
             const encoder = gpuDevice.createCommandEncoder();
             if (encoder.writeTimestamp) encoder.writeTimestamp(gpuQuerySet, 1);
