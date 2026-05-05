@@ -6,7 +6,7 @@ import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { IFFT } from "./utils/IFFT";
 import { createStorageTexture } from "./utils/utils";
 import { DynamicSpectrum } from "./spectrum/dynamicSpectrum";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Effect } from "@babylonjs/core/Materials/effect";
@@ -38,6 +38,12 @@ export class WaterMaterial extends ShaderMaterial {
      * The size of the ocean tiles.
      */
     readonly tileSize: number;
+
+    /**
+     * The world size covered by the textures in meters (for UV calculation).
+     * Usually equals tileSize, but can differ for tiling.
+     */
+    readonly worldTexSize: number;
 
     readonly reflectionTexture: CubeTexture;
 
@@ -97,7 +103,8 @@ export class WaterMaterial extends ShaderMaterial {
             attributes: ["position", "normal", "uv"],
             uniforms: [
                 "world", "worldView", "worldViewProjection", "view", "projection",
-                "cameraPositionW", "lightDirection", "tileSize",
+                "cameraPositionW", "lightDirection", "tileSize", "worldTexSize",
+                "worldOffset", "gridScale",
                 "showNormalMapOverlay"
             ],
             samplers: [
@@ -122,7 +129,6 @@ export class WaterMaterial extends ShaderMaterial {
             TropicalSunnyDay_ny,
             TropicalSunnyDay_nz
         ]);
-        //this.reflectionTexture.coordinatesMode = Constants.TEXTURE_CUBE_MAP;
         this.setTexture("reflectionSampler", this.reflectionTexture);
 
         if (initialSpectrum.h0.textureFormat != Constants.TEXTUREFORMAT_RGBA) {
@@ -131,18 +137,53 @@ export class WaterMaterial extends ShaderMaterial {
 
         this.textureSize = initialSpectrum.textureSize;
         this.tileSize = initialSpectrum.tileSize;
+        this.worldTexSize = initialSpectrum.tileSize;
 
         this.initialSpectrum = initialSpectrum;
         this.dynamicSpectrum = new DynamicSpectrum(this.initialSpectrum, engine);
 
         this.ifft = new IFFT(engine, this.textureSize);
+
         this.heightMap = createStorageTexture("heightBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
         this.gradientMap = createStorageTexture("gradientBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
         this.displacementMap = createStorageTexture("displacementBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
 
+        this.setupTextureWrapping(this.heightMap);
+        this.setupTextureWrapping(this.gradientMap);
+        this.setupTextureWrapping(this.displacementMap);
+
         this.setTexture("heightMap", this.heightMap);
         this.setTexture("gradientMap", this.gradientMap);
         this.setTexture("displacementMap", this.displacementMap);
+    }
+
+    private setupTextureWrapping(texture: BaseTexture): void {
+        texture.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        texture.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+    }
+
+    public setWorldOffset(offset: Vector2): void {
+        const effect = this.getEffect();
+        if (effect) {
+            effect.setFloat2("worldOffset", offset.x, offset.y);
+        }
+    }
+
+    public setWorldTexSize(size: number): void {
+        (this as any).worldTexSize = size;
+        this.setFloat("worldTexSize", size);
+    }
+
+    public setGridScale(scale: number): void {
+        this.setFloat("gridScale", scale);
+    }
+
+    public setVector2(name: string, value: Vector2): ShaderMaterial {
+        const effect = this.getEffect();
+        if (effect) {
+            effect.setFloat2(name, value.x, value.y);
+        }
+        return this;
     }
 
     /**
@@ -168,6 +209,7 @@ export class WaterMaterial extends ShaderMaterial {
         if (activeCamera === null) throw new Error("No active camera found");
         this.setVector3("cameraPositionW", activeCamera.globalPosition);
 
+        this.setFloat("worldTexSize", this.worldTexSize);
         this.setFloat("tileSize", this.tileSize);
 
         this.setVector3("lightDirection", lightDirection);

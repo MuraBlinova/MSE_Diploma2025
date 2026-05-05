@@ -2,7 +2,6 @@ let showWireframe = false;
 
 const wireframeToggle = document.createElement("button");
 wireframeToggle.textContent = "wireframe";
-// wireframeToggle.textContent = "Показать сетку воды";
 wireframeToggle.style.position = "fixed";
 wireframeToggle.style.top = "50px";
 wireframeToggle.style.right = "10px";
@@ -15,7 +14,6 @@ wireframeToggle.style.borderRadius = "6px";
 wireframeToggle.style.cursor = "pointer";
 wireframeToggle.onclick = () => {
     showWireframe = !showWireframe;
-    // wireframeToggle.textContent = showWireframe ? "Скрыть сетку воды" : "Показать сетку воды";
     scene.meshes.forEach(mesh => {
         if (mesh.material === waterMaterial) {
             mesh.material.wireframe = showWireframe;
@@ -48,7 +46,6 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 
 import { WaterMaterial } from "./waterMaterial";
-import { createTexturedPlane } from "./utils/utils";
 import { PhillipsSpectrum } from "./spectrum/phillipsSpectrum";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 
@@ -57,7 +54,6 @@ let showNormalMapOverlay = false;
 // UI-переключатель
 const normalMapToggle = document.createElement("button");
 normalMapToggle.textContent = "normal map";
-// normalMapToggle.textContent = "Показать карту нормалей на воде";
 normalMapToggle.style.position = "fixed";
 normalMapToggle.style.top = "10px";
 normalMapToggle.style.right = "10px";
@@ -70,7 +66,6 @@ normalMapToggle.style.borderRadius = "6px";
 normalMapToggle.style.cursor = "pointer";
 normalMapToggle.onclick = () => {
     showNormalMapOverlay = !showNormalMapOverlay;
-    // normalMapToggle.textContent = showNormalMapOverlay ? "Скрыть карту нормалей на воде" : "Показать карту нормалей на воде";
     if (waterMaterial) {
         waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
     }
@@ -118,8 +113,6 @@ import { Effect } from "@babylonjs/core/Materials/effect";
 
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 
-import sandTexture from "../assets/sand.jpg";
-
 import postProcessCode from "../shaders/smallPostProcess.glsl";
 
 const canvas = document.getElementById("renderer") as HTMLCanvasElement;
@@ -153,7 +146,6 @@ const depthRenderer = scene.enableDepthRenderer(camera, false, true);
 const initialSpectrum = new PhillipsSpectrum(textureSize, tileSize, engine);
 
 const waterMaterial = new WaterMaterial("waterяяMaterial", initialSpectrum, scene, engine);
-// Передать флаг и gradientMap в материал воды при инициализации
 waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
 waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
 
@@ -165,27 +157,11 @@ skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
 skyboxMaterial.disableLighting = true;
 skybox.material = skyboxMaterial;
 
-const groundMaterial = new StandardMaterial("groundMaterial", scene);
-groundMaterial.diffuseTexture = new Texture(sandTexture, scene);
-groundMaterial.specularColor.scaleInPlace(0);
-
 const radius = 3;
 
-const ground = MeshBuilder.CreateGround(
-    "ground",
-    {
-        width: tileSize * radius * 4,
-        height: tileSize * radius * 4
-    },
-    scene
-);
-ground.material = groundMaterial;
-ground.position.y = -2;
-
-// Создаём одну большую сетку воды вместо 49 маленьких плиток
-const waterGridCount = radius * 2 + 1; // 7
-const totalSize = tileSize * waterGridCount; // 70 метров
-const totalSubdivisions = textureSize * waterGridCount; // 896
+const waterGridCount = radius * 2 + 1;
+const totalSize = tileSize * waterGridCount;
+const totalSubdivisions = textureSize * waterGridCount;
 
 const water = MeshBuilder.CreateGround(
     "water",
@@ -198,9 +174,9 @@ const water = MeshBuilder.CreateGround(
 );
 water.material = waterMaterial;
 
-// Устанавливаем uniform'ы для перехода на мировые координаты
-waterMaterial.setFloat("tileSize", totalSize);
-waterMaterial.setVector2("worldOffset", new Vector2(0, 0));
+waterMaterial.setFloat("tileSize", tileSize);
+waterMaterial.setWorldTexSize(tileSize);
+waterMaterial.setWorldOffset(new Vector2(0, 0));
 waterMaterial.setFloat("gridScale", totalSize / totalSubdivisions);
 
 waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
