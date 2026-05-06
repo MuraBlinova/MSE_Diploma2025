@@ -23,7 +23,6 @@ wireframeToggle.onclick = () => {
 document.body.appendChild(wireframeToggle);
 import "../styles/index.css";
 
-// FPS overlay
 const fpsOverlay = document.createElement("div");
 fpsOverlay.style.position = "fixed";
 fpsOverlay.style.top = "10px";
@@ -51,7 +50,6 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 
 let showNormalMapOverlay = false;
 
-// UI-переключатель
 const normalMapToggle = document.createElement("button");
 normalMapToggle.textContent = "normal map";
 normalMapToggle.style.position = "fixed";
@@ -72,7 +70,6 @@ normalMapToggle.onclick = () => {
 };
 document.body.appendChild(normalMapToggle);
 
-// Color map of normals (gradientMap) in bottom right corner (HTML overlay)
 const normalCanvas = document.createElement("canvas");
 const normalSize = 200;
 normalCanvas.width = normalSize;
@@ -99,7 +96,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 if (!(await WebGPUEngine.IsSupportedAsync)) {
-    alert("WebGPU is not supported in your browser. Please check the compatibility here: https://github.com/gpuweb/gpuweb/wiki/Implementation-Status#implementation-status");
+    alert("WebGPU is not supported in your browser.");
 }
 
 const engine = new WebGPUEngine(canvas, { antialias: true });
@@ -113,7 +110,6 @@ camera.wheelPrecision = 100;
 camera.angularSensibilityX = 3000;
 camera.angularSensibilityY = 3000;
 camera.lowerRadiusLimit = 2;
-//camera.upperBetaLimit = 3.14 / 2;
 camera.attachControl();
 
 const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), scene);
@@ -139,15 +135,11 @@ skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
 skyboxMaterial.disableLighting = true;
 skybox.material = skyboxMaterial;
 
-const water = MeshBuilder.CreateGround(
-    "water",
-    {
-        width: totalSize,
-        height: totalSize,
-        subdivisions: totalSubdivisions
-    },
-    scene
-);
+const water = MeshBuilder.CreateGround("water", {
+    width: totalSize,
+    height: totalSize,
+    subdivisions: totalSubdivisions
+}, scene);
 water.material = waterMaterial;
 
 Effect.ShadersStore[`PostProcess1FragmentShader`] = postProcessCode;
@@ -172,6 +164,101 @@ function updateScene() {
     waterMaterial.update(deltaSeconds, light.direction);
 }
 
+const panel = document.createElement("div");
+panel.style.position = "fixed";
+panel.style.top = "90px";
+panel.style.right = "10px";
+panel.style.zIndex = "1001";
+panel.style.background = "rgba(0,0,0,0.8)";
+panel.style.color = "#fff";
+panel.style.padding = "12px";
+panel.style.borderRadius = "8px";
+panel.style.font = "12px monospace";
+panel.style.display = "flex";
+panel.style.flexDirection = "column";
+panel.style.gap = "6px";
+panel.style.width = "220px";
+document.body.appendChild(panel);
+
+const title = document.createElement("div");
+title.textContent = "Wave Params";
+title.style.fontWeight = "bold";
+title.style.marginBottom = "4px";
+panel.appendChild(title);
+
+let tile0 = 5.0, tile1 = 20.0, tile2 = 50.0;
+let amp0 = 0.1, amp1 = 0.5, amp2 = 0.5;
+
+const sliderDefs = [
+    { label: "Tile 0 (small)", uniform: "tile0", min: 1, max: 20, step: 0.5, val: () => tile0, set: (v: number) => { tile0 = v; } },
+    { label: "Tile 1 (medium)", uniform: "tile1", min: 10, max: 100, step: 1, val: () => tile1, set: (v: number) => { tile1 = v; } },
+    { label: "Tile 2 (large)", uniform: "tile2", min: 30, max: 500, step: 5, val: () => tile2, set: (v: number) => { tile2 = v; } },
+    { label: "Amp 0 (small)", uniform: "amp0", min: 0, max: 1, step: 0.01, val: () => amp0, set: (v: number) => { amp0 = v; } },
+    { label: "Amp 1 (medium)", uniform: "amp1", min: 0, max: 2, step: 0.01, val: () => amp1, set: (v: number) => { amp1 = v; } },
+    { label: "Amp 2 (large)", uniform: "amp2", min: 0, max: 3, step: 0.01, val: () => amp2, set: (v: number) => { amp2 = v; } },
+];
+
+sliderDefs.forEach((def) => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "6px";
+
+    const label = document.createElement("label");
+    label.textContent = def.label;
+    label.style.width = "90px";
+    label.style.fontSize = "10px";
+
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = String(def.min);
+    input.max = String(def.max);
+    input.step = String(def.step);
+    input.value = String(def.val());
+    input.style.flex = "1";
+    input.style.height = "14px";
+
+    const valueDisplay = document.createElement("span");
+    valueDisplay.textContent = String(def.val());
+    valueDisplay.style.width = "36px";
+    valueDisplay.style.textAlign = "right";
+    valueDisplay.style.fontSize = "10px";
+
+    input.addEventListener("input", () => {
+        const v = parseFloat(input.value);
+        valueDisplay.textContent = String(v);
+        def.set(v);
+        waterMaterial.setWaveParams(tile0, tile1, tile2, amp0, amp1, amp2);
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(valueDisplay);
+    panel.appendChild(row);
+});
+
+const resetBtn = document.createElement("button");
+resetBtn.textContent = "Reset";
+resetBtn.style.marginTop = "4px";
+resetBtn.style.padding = "4px";
+resetBtn.style.background = "#444";
+resetBtn.style.color = "#fff";
+resetBtn.style.border = "none";
+resetBtn.style.borderRadius = "4px";
+resetBtn.style.cursor = "pointer";
+resetBtn.onclick = () => {
+    tile0 = 5.0; tile1 = 20.0; tile2 = 50.0;
+    amp0 = 0.1; amp1 = 0.5; amp2 = 0.5;
+    waterMaterial.setWaveParams(tile0, tile1, tile2, amp0, amp1, amp2);
+    const inputs = panel.querySelectorAll("input[type=range]");
+    inputs.forEach((inp, i) => {
+        (inp as HTMLInputElement).value = String(sliderDefs[i].val());
+        const span = (inp as HTMLInputElement).nextElementSibling as HTMLSpanElement;
+        if (span) span.textContent = String(sliderDefs[i].val());
+    });
+};
+panel.appendChild(resetBtn);
+
 scene.executeWhenReady(() => {
 
     engine.loadingScreen.hideLoadingUI();
@@ -185,20 +272,14 @@ scene.executeWhenReady(() => {
 
     // WebGPU types fallback for TS
     const gpu = (navigator as any).gpu || (window as any).gpu;
-    const GPUBufferUsage = gpu?.BufferUsage || {
-        MAP_READ: 0x0001,
-        COPY_SRC: 0x0004,
-        QUERY_RESOLVE: 0x8000
-    };
+    const GPUBufferUsage = gpu?.BufferUsage || { MAP_READ: 0x0001, COPY_SRC: 0x0004, QUERY_RESOLVE: 0x8000 };
     const GPUMapMode = gpu?.MapMode || { READ: 0x0001 };
 
     let gpuQuerySet: GPUQuerySet | null = null;
     let gpuDevice: GPUDevice | null = null;
     if (engine._device && "createQuerySet" in engine._device) {
         gpuDevice = engine._device as GPUDevice;
-        try {
-            gpuQuerySet = gpuDevice.createQuerySet({ type: "timestamp", count: 2 });
-        } catch {}
+        try { gpuQuerySet = gpuDevice.createQuerySet({ type: "timestamp", count: 2 }); } catch {}
     }
     let queryBuffer: GPUBuffer | null = null;
     if (gpuDevice && gpuQuerySet) {
@@ -214,7 +295,7 @@ scene.executeWhenReady(() => {
         // WebGPU timestamp start
         if (gpuDevice && gpuQuerySet && gpuDevice.createCommandEncoder) {
             const encoder = gpuDevice.createCommandEncoder();
-            if (encoder.writeTimestamp) encoder.writeTimestamp(gpuQuerySet, 0);
+            if ((encoder as any).writeTimestamp) (encoder as any).writeTimestamp(gpuQuerySet, 0);
             if (gpuDevice.queue && gpuDevice.queue.submit) gpuDevice.queue.submit([encoder.finish()]);
         }
 
@@ -259,8 +340,8 @@ scene.executeWhenReady(() => {
 
         if (gpuDevice && gpuQuerySet && queryBuffer && gpuDevice.createCommandEncoder) {
             const encoder = gpuDevice.createCommandEncoder();
-            if (encoder.writeTimestamp) encoder.writeTimestamp(gpuQuerySet, 1);
-            if (encoder.resolveQuerySet) encoder.resolveQuerySet(gpuQuerySet, 0, 2, queryBuffer, 0);
+            if ((encoder as any).writeTimestamp) (encoder as any).writeTimestamp(gpuQuerySet, 1);
+            if ((encoder as any).resolveQuerySet) (encoder as any).resolveQuerySet(gpuQuerySet, 0, 2, queryBuffer, 0);
             if (gpuDevice.queue && gpuDevice.queue.submit) gpuDevice.queue.submit([encoder.finish()]);
             try {
                 if (queryBuffer.mapAsync) {

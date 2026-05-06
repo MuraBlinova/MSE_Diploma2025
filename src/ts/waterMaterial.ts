@@ -6,7 +6,7 @@ import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { IFFT } from "./utils/IFFT";
 import { createStorageTexture } from "./utils/utils";
 import { DynamicSpectrum } from "./spectrum/dynamicSpectrum";
-import { Vector2, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Effect } from "@babylonjs/core/Materials/effect";
@@ -38,12 +38,6 @@ export class WaterMaterial extends ShaderMaterial {
      * The size of the ocean tiles.
      */
     readonly tileSize: number;
-
-    /**
-     * The world size covered by the textures in meters (for UV calculation).
-     * Usually equals tileSize, but can differ for tiling.
-     */
-    readonly worldTexSize: number;
 
     readonly reflectionTexture: CubeTexture;
 
@@ -103,7 +97,8 @@ export class WaterMaterial extends ShaderMaterial {
             attributes: ["position", "normal", "uv"],
             uniforms: [
                 "world", "worldView", "worldViewProjection", "view", "projection",
-                "cameraPositionW", "lightDirection", "time",
+                "cameraPositionW", "lightDirection",
+                "uTiles", "uAmps",
                 "showNormalMapOverlay"
             ],
             samplers: [
@@ -112,6 +107,7 @@ export class WaterMaterial extends ShaderMaterial {
                 "normalMapOverlay"
             ]
         });
+
         this.depthRenderer = scene.enableDepthRenderer(scene.activeCamera, false, true);
         this.setTexture("depthSampler", this.depthRenderer.getDepthMap());
 
@@ -135,7 +131,6 @@ export class WaterMaterial extends ShaderMaterial {
 
         this.textureSize = initialSpectrum.textureSize;
         this.tileSize = initialSpectrum.tileSize;
-        this.worldTexSize = initialSpectrum.tileSize;
 
         this.initialSpectrum = initialSpectrum;
         this.dynamicSpectrum = new DynamicSpectrum(this.initialSpectrum, engine);
@@ -152,6 +147,9 @@ export class WaterMaterial extends ShaderMaterial {
 
         this.setTexture("heightMap", this.heightMap);
         this.setTexture("displacementMap", this.displacementMap);
+
+        this.setVector3("uTiles", new Vector3(5.0, 20.0, 50.0));
+        this.setVector3("uAmps", new Vector3(0.1, 0.5, 0.5));
     }
 
     private setupTextureWrapping(texture: BaseTexture): void {
@@ -159,13 +157,16 @@ export class WaterMaterial extends ShaderMaterial {
         texture.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
     }
 
+    public setWaveParams(tile0: number, tile1: number, tile2: number, amp0: number, amp1: number, amp2: number): void {
+        this.setVector3("uTiles", new Vector3(tile0, tile1, tile2));
+        this.setVector3("uAmps", new Vector3(amp0, amp1, amp2));
+    }
+
     public update(deltaSeconds: number, lightDirection: Vector3) {
         this.elapsedSeconds += deltaSeconds;
         this.dynamicSpectrum.generate(this.elapsedSeconds);
 
-        const allNonWaterMeshes = this.getScene().meshes.filter(
-            (mesh) => mesh.material !== this
-        );
+        const allNonWaterMeshes = this.getScene().meshes.filter((mesh) => mesh.material !== this);
         this.depthRenderer.getDepthMap().renderList = allNonWaterMeshes;
         this.screenRenderTarget.renderList = allNonWaterMeshes;
 
@@ -176,15 +177,10 @@ export class WaterMaterial extends ShaderMaterial {
         const activeCamera = this.getScene().activeCamera;
         if (activeCamera === null) throw new Error("No active camera found");
         this.setVector3("cameraPositionW", activeCamera.globalPosition);
-        this.setFloat("time", this.elapsedSeconds);
         this.setVector3("lightDirection", lightDirection);
     }
 
-    public dispose(
-        forceDisposeEffect?: boolean,
-        forceDisposeTextures?: boolean,
-        notBoundToMesh?: boolean
-    ) {
+    public dispose(forceDisposeEffect?: boolean, forceDisposeTextures?: boolean, notBoundToMesh?: boolean) {
         this.dynamicSpectrum.dispose();
         this.ifft.dispose();
         this.heightMap.dispose();
