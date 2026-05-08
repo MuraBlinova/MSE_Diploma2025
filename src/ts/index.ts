@@ -112,6 +112,34 @@ camera.angularSensibilityY = 3000;
 camera.lowerRadiusLimit = 2;
 camera.attachControl();
 
+const keys: { [key: string]: boolean } = {};
+window.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+scene.registerBeforeRender(() => {
+    const speed = 0.5;
+    const alpha = camera.alpha;
+    const forwardX = Math.cos(alpha);
+    const forwardZ = Math.sin(alpha);
+    const rightX = -Math.sin(alpha);
+    const rightZ = Math.cos(alpha);
+
+    let moveX = 0;
+    let moveZ = 0;
+
+    if (keys["w"]) {moveX -= forwardX; moveZ -= forwardZ; }
+    if (keys["s"]) { moveX += forwardX; moveZ += forwardZ; }
+    if (keys["a"]) { moveX -= rightX; moveZ -= rightZ; }
+    if (keys["d"]) { moveX += rightX; moveZ += rightZ; }
+
+    if (moveX !== 0 || moveZ !== 0) {
+        const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+        moveX /= len;
+        moveZ /= len;
+        camera.target.addInPlaceFromFloats(moveX * speed, 0, moveZ * speed);
+    }
+});
+
 const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), scene);
 
 const gridCount = 10;
@@ -129,6 +157,9 @@ const spectra = [
 spectra[0].settings.windSpeed = 20;
 spectra[1].settings.windSpeed = 31;
 spectra[2].settings.windSpeed = 10;
+spectra[0].settings.windTheta = 0;
+spectra[1].settings.windTheta = 1.57;
+spectra[2].settings.windTheta = 1.57*3;
 spectra.forEach(s => s.updateSettingsGPU());
 
 const waterMaterial = new WaterMaterial("water", spectra, scene, engine);
@@ -150,6 +181,13 @@ const water = MeshBuilder.CreateGround("water", {
     subdivisions: totalSubdivisions
 }, scene);
 water.material = waterMaterial;
+
+scene.registerBeforeRender(() => {
+    const camPos = camera.globalPosition;
+    const snapSize = totalSize / gridCount;
+    water.position.x = Math.floor(camPos.x / snapSize) * snapSize;
+    water.position.z = Math.floor(camPos.z / snapSize) * snapSize;
+});
 
 Effect.ShadersStore[`PostProcess1FragmentShader`] = postProcessCode;
 const postProcess = new PostProcess(
@@ -196,7 +234,7 @@ title.style.marginBottom = "4px";
 panel.appendChild(title);
 
 let tile0 = tileWorldSize/3, tile1 = tileWorldSize/2, tile2 = tileWorldSize;
-let amp0 = 0.02, amp1 = 0.0, amp2 = 0.0;
+let amp0 = 0.02, amp1 = 0.02, amp2 = 0.02;
 
 const sliderDefs = [
     { label: "Tile 0 (small)", uniform: "tile0", min: 0, max: tileWorldSize/15, step: tileWorldSize/15, val: () => tile0, set: (v: number) => { tile0 = v; } },
@@ -257,7 +295,7 @@ resetBtn.style.borderRadius = "4px";
 resetBtn.style.cursor = "pointer";
 resetBtn.onclick = () => {
     tile0 = tileWorldSize/3; tile1 = tileWorldSize/2; tile2 = tileWorldSize;
-    amp0 = 0.02; amp1 = 0.0; amp2 = 0.0;
+    amp0 = 0.02; amp1 = 0.02; amp2 = 0.02;
     waterMaterial.setWaveParams(tile0, tile1, tile2, amp0, amp1, amp2);
     const inputs = panel.querySelectorAll("input[type=range]");
     inputs.forEach((inp, i) => {
@@ -373,6 +411,9 @@ scene.executeWhenReady(() => {
             fpsOverlay.textContent = `FPS: ${lastFps}` + (gpuTimeMs ? ` | GPU: ${gpuTimeMs.toFixed(2)} ms` : "");
             frameCount = 0;
             lastFpsPrint = now;
+
+            const distToWater = camera.globalPosition.y - water.position.y;
+            console.log("Высота камеры над водой:", distToWater, "м");
         }
     });
 });

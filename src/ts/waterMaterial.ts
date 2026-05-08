@@ -156,7 +156,7 @@ export class WaterMaterial extends ShaderMaterial {
             spectra[1].tileSize,
             spectra[2].tileSize
         ));
-        this.setVector3("uAmps", new Vector3(0.01, 0.0, 0.0));
+        this.setVector3("uAmps", new Vector3(0.02, 0.02, 0.02));
     }
 
     public setWaveParams(tile0: number, tile1: number, tile2: number, amp0: number, amp1: number, amp2: number): void {
