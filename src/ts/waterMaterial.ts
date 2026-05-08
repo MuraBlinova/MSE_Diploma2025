@@ -34,32 +34,12 @@ export class WaterMaterial extends ShaderMaterial {
      */
     readonly textureSize: number;
 
-    /**
-     * The size of the ocean tiles.
-     */
-    readonly tileSize: number;
-
     readonly reflectionTexture: CubeTexture;
 
-    /**
-     * The spectrum describing the simulation at time t=0.
-     */
-    readonly initialSpectrum: InitialSpectrum;
+    private spectra: InitialSpectrum[];
+    private dynamics: DynamicSpectrum[] = [];
+    private iffts: IFFT[] = [];
 
-    /**
-     * The spectrum describing the simulation at the current time.
-     */
-    readonly dynamicSpectrum: DynamicSpectrum;
-
-    /**
-     * The IFFT calculator used to compute the height map, gradient map and displacement map.
-     */
-    readonly ifft: IFFT;
-
-    /**
-     * The height map is used to translate vertically the water vertices.
-     * It is computed using the IFFT of the dynamic spectrum.
-     */
     readonly heightMap: BaseTexture;
 
     /**
@@ -67,13 +47,17 @@ export class WaterMaterial extends ShaderMaterial {
      * It is computed using the IFFT of the dynamic spectrum.
      */
     readonly gradientMap: BaseTexture;
-
     /**
      * The displacement map is used to achieve the "Choppy waves" effect described in Tessendorf's paper.
      * It helps to make sharper wave crests and smoother troughs.
      * It is computed using the IFFT of the dynamic spectrum.
      */
     readonly displacementMap: BaseTexture;
+
+    readonly heightMap1: BaseTexture;
+    readonly displacementMap1: BaseTexture;
+    readonly heightMap2: BaseTexture;
+    readonly displacementMap2: BaseTexture;
 
     readonly depthRenderer: DepthRenderer;
 
@@ -86,13 +70,14 @@ export class WaterMaterial extends ShaderMaterial {
      */
     private elapsedSeconds = 60;
 
-    constructor(name: string, initialSpectrum: InitialSpectrum, scene: Scene, engine: WebGPUEngine) {
+    constructor(name: string, spectra: InitialSpectrum[], scene: Scene, engine: WebGPUEngine) {
         if (Effect.ShadersStore["oceanVertexShader"] === undefined) {
             Effect.ShadersStore["oceanVertexShader"] = vertex;
         }
         if (Effect.ShadersStore["oceanFragmentShader"] === undefined) {
             Effect.ShadersStore["oceanFragmentShader"] = fragment;
         }
+
         super(name, scene, "ocean", {
             attributes: ["position", "normal", "uv"],
             uniforms: [
@@ -103,19 +88,60 @@ export class WaterMaterial extends ShaderMaterial {
             ],
             samplers: [
                 "heightMap", "displacementMap",
+                "heightMap1", "displacementMap1",
+                "heightMap2", "displacementMap2",
                 "reflectionSampler", "depthSampler", "textureSampler",
                 "normalMapOverlay"
             ]
         });
 
+        this.spectra = spectra;
+        this.textureSize = spectra[0].textureSize;
+
+        for (let i = 0; i < 3; i++) {
+            const dyn = new DynamicSpectrum(spectra[i], engine);
+            const ifft = new IFFT(engine, spectra[i].textureSize);
+            this.dynamics.push(dyn);
+            this.iffts.push(ifft);
+        }
+
+        this.heightMap = createStorageTexture("heightBuffer0", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.gradientMap = createStorageTexture("gradientBuffer0", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.displacementMap = createStorageTexture("displacementBuffer0", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+
+        this.heightMap1 = createStorageTexture("heightBuffer1", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.displacementMap1 = createStorageTexture("displacementBuffer1", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        
+        this.heightMap2 = createStorageTexture("heightBuffer2", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.displacementMap2 = createStorageTexture("displacementBuffer2", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+
+
+        this.heightMap.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.heightMap.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        
+        this.heightMap1.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.heightMap1.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap1.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap1.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        
+        this.heightMap2.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.heightMap2.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap2.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.displacementMap2.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+
+        this.setTexture("heightMap", this.heightMap);
+        this.setTexture("displacementMap", this.displacementMap);
+        this.setTexture("heightMap1", this.heightMap1);
+        this.setTexture("displacementMap1", this.displacementMap1);
+        this.setTexture("heightMap2", this.heightMap2);
+        this.setTexture("displacementMap2", this.displacementMap2);
+
         this.depthRenderer = scene.enableDepthRenderer(scene.activeCamera, false, true);
         this.setTexture("depthSampler", this.depthRenderer.getDepthMap());
 
-        this.screenRenderTarget = new RenderTargetTexture(
-            "screenTexture",
-            { ratio: engine.getRenderWidth() / engine.getRenderHeight() },
-            scene
-        );
+        this.screenRenderTarget = new RenderTargetTexture("screenTexture", { ratio: engine.getRenderWidth() / engine.getRenderHeight() }, scene);
         scene.customRenderTargets.push(this.screenRenderTarget);
         this.setTexture("textureSampler", this.screenRenderTarget);
 
@@ -125,36 +151,12 @@ export class WaterMaterial extends ShaderMaterial {
         ]);
         this.setTexture("reflectionSampler", this.reflectionTexture);
 
-        if (initialSpectrum.h0.textureFormat != Constants.TEXTUREFORMAT_RGBA) {
-            throw new Error("The base spectrum must have a texture format of RGBA");
-        }
-
-        this.textureSize = initialSpectrum.textureSize;
-        this.tileSize = initialSpectrum.tileSize;
-
-        this.initialSpectrum = initialSpectrum;
-        this.dynamicSpectrum = new DynamicSpectrum(this.initialSpectrum, engine);
-
-        this.ifft = new IFFT(engine, this.textureSize);
-
-        this.heightMap = createStorageTexture("heightBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
-        this.gradientMap = createStorageTexture("gradientBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
-        this.displacementMap = createStorageTexture("displacementBuffer", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
-
-        this.setupTextureWrapping(this.heightMap);
-        this.setupTextureWrapping(this.gradientMap);
-        this.setupTextureWrapping(this.displacementMap);
-
-        this.setTexture("heightMap", this.heightMap);
-        this.setTexture("displacementMap", this.displacementMap);
-
-        this.setVector3("uTiles", new Vector3(5.0, 20.0, 50.0));
-        this.setVector3("uAmps", new Vector3(0.1, 0.5, 0.5));
-    }
-
-    private setupTextureWrapping(texture: BaseTexture): void {
-        texture.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
-        texture.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.setVector3("uTiles", new Vector3(
+            spectra[0].tileSize,
+            spectra[1].tileSize,
+            spectra[2].tileSize
+        ));
+        this.setVector3("uAmps", new Vector3(0.01, 0.0, 0.0));
     }
 
     public setWaveParams(tile0: number, tile1: number, tile2: number, amp0: number, amp1: number, amp2: number): void {
@@ -164,29 +166,41 @@ export class WaterMaterial extends ShaderMaterial {
 
     public update(deltaSeconds: number, lightDirection: Vector3) {
         this.elapsedSeconds += deltaSeconds;
-        this.dynamicSpectrum.generate(this.elapsedSeconds);
 
-        const allNonWaterMeshes = this.getScene().meshes.filter((mesh) => mesh.material !== this);
+        for (let i = 0; i < 3; i++) {
+            this.dynamics[i].generate(this.elapsedSeconds);
+        }
+
+        this.iffts[0].applyToTexture(this.dynamics[0].ht, this.heightMap);
+        this.iffts[0].applyToTexture(this.dynamics[0].dht, this.gradientMap);
+        this.iffts[0].applyToTexture(this.dynamics[0].displacement, this.displacementMap);
+
+        this.iffts[1].applyToTexture(this.dynamics[1].ht, this.heightMap1);
+        this.iffts[1].applyToTexture(this.dynamics[1].displacement, this.displacementMap1);
+        
+        this.iffts[2].applyToTexture(this.dynamics[2].ht, this.heightMap2);
+        this.iffts[2].applyToTexture(this.dynamics[2].displacement, this.displacementMap2);
+
+        const allNonWaterMeshes = this.getScene().meshes.filter(m => m.material !== this);
         this.depthRenderer.getDepthMap().renderList = allNonWaterMeshes;
         this.screenRenderTarget.renderList = allNonWaterMeshes;
 
-        this.ifft.applyToTexture(this.dynamicSpectrum.ht, this.heightMap);
-        this.ifft.applyToTexture(this.dynamicSpectrum.dht, this.gradientMap);
-        this.ifft.applyToTexture(this.dynamicSpectrum.displacement, this.displacementMap);
-
         const activeCamera = this.getScene().activeCamera;
-        if (activeCamera === null) throw new Error("No active camera found");
+        if (activeCamera === null) throw new Error("No active camera");
         this.setVector3("cameraPositionW", activeCamera.globalPosition);
         this.setVector3("lightDirection", lightDirection);
     }
 
     public dispose(forceDisposeEffect?: boolean, forceDisposeTextures?: boolean, notBoundToMesh?: boolean) {
-        this.dynamicSpectrum.dispose();
-        this.ifft.dispose();
+        this.dynamics.forEach(d => d.dispose());
+        this.iffts.forEach(i => i.dispose());
         this.heightMap.dispose();
         this.gradientMap.dispose();
         this.displacementMap.dispose();
-
+        this.heightMap1.dispose();
+        this.displacementMap1.dispose();
+        this.heightMap2.dispose();
+        this.displacementMap2.dispose();
         super.dispose(forceDisposeEffect, forceDisposeTextures, notBoundToMesh);
     }
 }

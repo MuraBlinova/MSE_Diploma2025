@@ -114,15 +114,24 @@ camera.attachControl();
 
 const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), scene);
 
+const gridCount = 10;
+const tileWorldSize = 30;
+const totalSize = tileWorldSize * gridCount;
 const textureSize = 128;
-const tileSize = 10;
-const waterGridCount = 7;
-const totalSize = tileSize * waterGridCount;
-const totalSubdivisions = textureSize * waterGridCount;
+const totalSubdivisions = textureSize * gridCount;
 
 const depthRenderer = scene.enableDepthRenderer(camera, false, true);
-const initialSpectrum = new PhillipsSpectrum(textureSize, tileSize, engine);
-const waterMaterial = new WaterMaterial("water", initialSpectrum, scene, engine);
+const spectra = [
+    new PhillipsSpectrum(textureSize, tileWorldSize/3, engine),
+    new PhillipsSpectrum(textureSize, tileWorldSize/2, engine),
+    new PhillipsSpectrum(textureSize, tileWorldSize, engine),
+];
+spectra[0].settings.windSpeed = 20;
+spectra[1].settings.windSpeed = 31;
+spectra[2].settings.windSpeed = 10;
+spectra.forEach(s => s.updateSettingsGPU());
+
+const waterMaterial = new WaterMaterial("water", spectra, scene, engine);
 
 waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
 waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
@@ -186,16 +195,16 @@ title.style.fontWeight = "bold";
 title.style.marginBottom = "4px";
 panel.appendChild(title);
 
-let tile0 = 5.0, tile1 = 20.0, tile2 = 50.0;
-let amp0 = 0.1, amp1 = 0.5, amp2 = 0.5;
+let tile0 = tileWorldSize/3, tile1 = tileWorldSize/2, tile2 = tileWorldSize;
+let amp0 = 0.02, amp1 = 0.0, amp2 = 0.0;
 
 const sliderDefs = [
-    { label: "Tile 0 (small)", uniform: "tile0", min: 1, max: 20, step: 0.5, val: () => tile0, set: (v: number) => { tile0 = v; } },
-    { label: "Tile 1 (medium)", uniform: "tile1", min: 10, max: 100, step: 1, val: () => tile1, set: (v: number) => { tile1 = v; } },
-    { label: "Tile 2 (large)", uniform: "tile2", min: 30, max: 500, step: 5, val: () => tile2, set: (v: number) => { tile2 = v; } },
-    { label: "Amp 0 (small)", uniform: "amp0", min: 0, max: 1, step: 0.01, val: () => amp0, set: (v: number) => { amp0 = v; } },
-    { label: "Amp 1 (medium)", uniform: "amp1", min: 0, max: 2, step: 0.01, val: () => amp1, set: (v: number) => { amp1 = v; } },
-    { label: "Amp 2 (large)", uniform: "amp2", min: 0, max: 3, step: 0.01, val: () => amp2, set: (v: number) => { amp2 = v; } },
+    { label: "Tile 0 (small)", uniform: "tile0", min: 0, max: tileWorldSize/15, step: tileWorldSize/15, val: () => tile0, set: (v: number) => { tile0 = v; } },
+    { label: "Tile 1 (medium)", uniform: "tile1", min: tileWorldSize/3, max: tileWorldSize, step: tileWorldSize/3, val: () => tile1, set: (v: number) => { tile1 = v; } },
+    { label: "Tile 2 (large)", uniform: "tile2", min: tileWorldSize/2, max: tileWorldSize*10, step: tileWorldSize/2, val: () => tile2, set: (v: number) => { tile2 = v; } },
+    { label: "Amp 0 (small)", uniform: "amp0", min: 0, max: 0.5, step: 0.001, val: () => amp0, set: (v: number) => { amp0 = v; } },
+    { label: "Amp 1 (medium)", uniform: "amp1", min: 0, max: 0.05, step: 0.001, val: () => amp1, set: (v: number) => { amp1 = v; } },
+    { label: "Amp 2 (large)", uniform: "amp2", min: 0, max: 0.05, step: 0.001, val: () => amp2, set: (v: number) => { amp2 = v; } },
 ];
 
 sliderDefs.forEach((def) => {
@@ -247,8 +256,8 @@ resetBtn.style.border = "none";
 resetBtn.style.borderRadius = "4px";
 resetBtn.style.cursor = "pointer";
 resetBtn.onclick = () => {
-    tile0 = 5.0; tile1 = 20.0; tile2 = 50.0;
-    amp0 = 0.1; amp1 = 0.5; amp2 = 0.5;
+    tile0 = tileWorldSize/3; tile1 = tileWorldSize/2; tile2 = tileWorldSize;
+    amp0 = 0.02; amp1 = 0.0; amp2 = 0.0;
     waterMaterial.setWaveParams(tile0, tile1, tile2, amp0, amp1, amp2);
     const inputs = panel.querySelectorAll("input[type=range]");
     inputs.forEach((inp, i) => {
@@ -359,6 +368,8 @@ scene.executeWhenReady(() => {
         if (now - lastFpsPrint > 1000) {
             lastFps = frameCount;
             console.log("FPS:", lastFps, gpuTimeMs ? `| GPU frame: ${gpuTimeMs.toFixed(2)} ms` : "");
+            console.log("tile0:", tile0, "tile1:", tile1, "tile2:", tile2);
+            console.log("amp0:", amp0, "amp1:", amp1, "amp2:", amp2);
             fpsOverlay.textContent = `FPS: ${lastFps}` + (gpuTimeMs ? ` | GPU: ${gpuTimeMs.toFixed(2)} ms` : "");
             frameCount = 0;
             lastFpsPrint = now;

@@ -27,8 +27,17 @@ const light = new DirectionalLight("light", new Vector3(1, -1, 0).normalize(), s
 const textureSize = 512;
 const tileSize = 10;
 
-const initialSpectrum = new PhillipsSpectrum(textureSize, tileSize, engine);
-const waterMaterial = new WaterMaterial("waterMaterial", initialSpectrum, scene, engine);
+const spectra = [
+    new PhillipsSpectrum(128, 5, engine),
+    new PhillipsSpectrum(128, 40, engine),
+    new PhillipsSpectrum(128, 200, engine),
+];
+spectra[0].settings.windSpeed = 20;
+spectra[1].settings.windSpeed = 31;
+spectra[2].settings.windSpeed = 45;
+spectra.forEach(s => s.updateSettingsGPU());
+
+const waterMaterial = new WaterMaterial("waterMaterial", spectra, scene, engine);
 
 const water = MeshBuilder.CreateGround(
     "water",
