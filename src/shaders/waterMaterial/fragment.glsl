@@ -28,7 +28,12 @@ void main() {
 
     float ndl = max(0.0, dot(normal, -lightDirection));
 
-    vec3 diffuseColor = vec3(0.01, 0.06, 0.1);
+    float diffuseStrength = ndl * 0.8 + 0.2;
+    //vec3 deepColor = vec3(0.01, 0.05, 0.12);
+    vec3 deepColor = vec3(0.02, 0.1, 0.24);
+    vec3 shallowColor = vec3(0.05, 0.25, 0.4);
+    vec3 diffuseColor = mix(deepColor, shallowColor, ndl);
+    diffuseColor = mix(diffuseColor, backgroundColor, exp(-distanceThroughWater * 0.15));
 
     diffuseColor = mix(diffuseColor, backgroundColor, exp(-distanceThroughWater * 0.1));
 

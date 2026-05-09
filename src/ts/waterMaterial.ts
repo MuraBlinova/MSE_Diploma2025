@@ -47,6 +47,8 @@ export class WaterMaterial extends ShaderMaterial {
      * It is computed using the IFFT of the dynamic spectrum.
      */
     readonly gradientMap: BaseTexture;
+    readonly gradientMap1: BaseTexture;
+    readonly gradientMap2: BaseTexture;
     /**
      * The displacement map is used to achieve the "Choppy waves" effect described in Tessendorf's paper.
      * It helps to make sharper wave crests and smoother troughs.
@@ -110,24 +112,32 @@ export class WaterMaterial extends ShaderMaterial {
         this.displacementMap = createStorageTexture("displacementBuffer0", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
 
         this.heightMap1 = createStorageTexture("heightBuffer1", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.gradientMap1 = createStorageTexture("gradientBuffer1", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
         this.displacementMap1 = createStorageTexture("displacementBuffer1", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
         
         this.heightMap2 = createStorageTexture("heightBuffer2", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
+        this.gradientMap2 = createStorageTexture("gradientBuffer2", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
         this.displacementMap2 = createStorageTexture("displacementBuffer2", engine, this.textureSize, this.textureSize, Constants.TEXTUREFORMAT_RG);
 
 
         this.heightMap.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.heightMap.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
         
         this.heightMap1.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.heightMap1.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap1.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap1.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap1.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap1.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
         
         this.heightMap2.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.heightMap2.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap2.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
+        this.gradientMap2.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap2.wrapU = Constants.TEXTURE_WRAP_ADDRESSMODE;
         this.displacementMap2.wrapV = Constants.TEXTURE_WRAP_ADDRESSMODE;
 
@@ -176,9 +186,11 @@ export class WaterMaterial extends ShaderMaterial {
         this.iffts[0].applyToTexture(this.dynamics[0].displacement, this.displacementMap);
 
         this.iffts[1].applyToTexture(this.dynamics[1].ht, this.heightMap1);
+        this.iffts[1].applyToTexture(this.dynamics[1].dht, this.gradientMap1);
         this.iffts[1].applyToTexture(this.dynamics[1].displacement, this.displacementMap1);
         
         this.iffts[2].applyToTexture(this.dynamics[2].ht, this.heightMap2);
+        this.iffts[2].applyToTexture(this.dynamics[2].dht, this.gradientMap2);
         this.iffts[2].applyToTexture(this.dynamics[2].displacement, this.displacementMap2);
 
         const allNonWaterMeshes = this.getScene().meshes.filter(m => m.material !== this);
@@ -198,8 +210,10 @@ export class WaterMaterial extends ShaderMaterial {
         this.gradientMap.dispose();
         this.displacementMap.dispose();
         this.heightMap1.dispose();
+        this.gradientMap1.dispose();
         this.displacementMap1.dispose();
         this.heightMap2.dispose();
+        this.gradientMap2.dispose();
         this.displacementMap2.dispose();
         super.dispose(forceDisposeEffect, forceDisposeTextures, notBoundToMesh);
     }
