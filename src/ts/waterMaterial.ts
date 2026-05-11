@@ -24,9 +24,6 @@ import TropicalSunnyDay_nx from "../assets/skybox/TropicalSunnyDay_nx.jpg";
 import TropicalSunnyDay_ny from "../assets/skybox/TropicalSunnyDay_ny.jpg";
 import TropicalSunnyDay_nz from "../assets/skybox/TropicalSunnyDay_nz.jpg";
 
-// ───────────────────────────────────
-// WaterMaterial — 9 octaves (3 per spectrum)
-// ───────────────────────────────────
 export class WaterMaterial extends ShaderMaterial {
     readonly textureSize: number;
     readonly reflectionTexture: CubeTexture;
@@ -56,8 +53,9 @@ export class WaterMaterial extends ShaderMaterial {
             uniforms: [
                 "world", "worldView", "worldViewProjection", "view", "projection",
                 "cameraPositionW", "lightDirection",
-                "uTiles", "uAmps",
-                "showNormalMapOverlay", "showTileBorders"
+                "uTiles", "uAmps", "uGridStep",
+                "showNormalMapOverlay", "showTileBorders", "showHexGrid", "showSpectralMixing",
+                "uGridStep", "uBlendSigma", "uLODSkip"
             ],
             samplers: [
                 "heightMap", "displacementMap",
@@ -94,6 +92,10 @@ export class WaterMaterial extends ShaderMaterial {
         this.setTexture("heightMap", this.heightMap);       this.setTexture("displacementMap", this.displacementMap);
         this.setTexture("heightMap1", this.heightMap1);     this.setTexture("displacementMap1", this.displacementMap1);
         this.setTexture("heightMap2", this.heightMap2);     this.setTexture("displacementMap2", this.displacementMap2);
+        
+        this.setFloat("uGridStep", 15.0);
+        this.setFloat("uBlendSigma", 1.0);
+        this.setFloat("uLODSkip", 0.0);
 
         this.depthRenderer = scene.enableDepthRenderer(scene.activeCamera, false, true);
         this.setTexture("depthSampler", this.depthRenderer.getDepthMap());
@@ -109,8 +111,8 @@ export class WaterMaterial extends ShaderMaterial {
         ]);
         this.setTexture("reflectionSampler", this.reflectionTexture);
 
-        this.setMatrix3x3("uTiles", new Float32Array([10, 5, 2, 0,0,0, 0,0,0]));
-        this.setMatrix3x3("uAmps", new Float32Array([0,0,0, 0,0,0, 0,0,0]));
+        this.setMatrix3x3("uTiles", new Float32Array([10,5,2, 0,0,0, 0,0,0]));
+        this.setMatrix3x3("uAmps", new Float32Array([0.02,0.01,0.005, 0,0,0, 0,0,0]));
     }
 
     public setAllWaveParams(
@@ -118,14 +120,15 @@ export class WaterMaterial extends ShaderMaterial {
         t10: number, t11: number, t12: number, a10: number, a11: number, a12: number,
         t20: number, t21: number, t22: number, a20: number, a21: number, a22: number
     ): void {
-        this.setMatrix3x3("uTiles", new Float32Array([t00, t01, t02, t10, t11, t12, t20, t21, t22]));
-        this.setMatrix3x3("uAmps", new Float32Array([a00, a01, a02, a10, a11, a12, a20, a21, a22]));
+        this.setMatrix3x3("uTiles", new Float32Array([t00,t01,t02, t10,t11,t12, t20,t21,t22]));
+        this.setMatrix3x3("uAmps", new Float32Array([a00,a01,a02, a10,a11,a12, a20,a21,a22]));
     }
 
     public setWaveParams(t0: number, t1: number, t2: number, a0: number, a1: number, a2: number): void {
-        this.setMatrix3x3("uTiles", new Float32Array([t0, t1, t2, 0,0,0, 0,0,0]));
-        this.setMatrix3x3("uAmps", new Float32Array([a0, a1, a2, 0,0,0, 0,0,0]));
+        this.setMatrix3x3("uTiles", new Float32Array([t0,t1,t2, 0,0,0, 0,0,0]));
+        this.setMatrix3x3("uAmps", new Float32Array([a0,a1,a2, 0,0,0, 0,0,0]));
     }
+
     public update(deltaSeconds: number, lightDirection: Vector3) {
         this.elapsedSeconds += deltaSeconds;
 

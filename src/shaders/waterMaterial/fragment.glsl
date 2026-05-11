@@ -7,6 +7,7 @@ varying vec2 vUV;
 varying vec2 vTileUV0;
 varying vec2 vTileUV1;
 varying vec2 vTileUV2;
+varying vec2 vWorldXZ;
 
 uniform vec3 cameraPositionW;
 uniform vec3 lightDirection;
@@ -17,9 +18,52 @@ uniform samplerCube reflectionSampler;
 uniform sampler2D normalMapOverlay;
 uniform float showNormalMapOverlay;
 uniform float showTileBorders;
+uniform float showHexGrid;
+uniform float showSpectralMixing;
+uniform float uGridStep;
 
 float edgeDist(vec2 uv) {
     return min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+}
+
+float hexGridDist(vec2 p) {
+    float L = uGridStep;
+
+    float fx = mod(p.x, L);
+    float d1 = min(fx, L - fx);
+
+    float diag1 = p.x * 0.5 + p.y * 0.8660254;
+    float fd1 = mod(diag1, L);
+    float d2 = min(fd1, L - fd1);
+
+    float diag2 = p.x * 0.5 - p.y * 0.8660254;
+    float fd2 = mod(diag2, L);
+    float d3 = min(fd2, L - fd2);
+
+    return min(min(d1, d2), d3);
+}
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+int getSpectrumAtNode(float m, float n) {
+    float h = hash(vec2(m, n));
+    if (h < 0.333) return 0;
+    if (h < 0.666) return 1;
+    return 2;
+}
+
+float hexPointDist(vec2 p) {
+    float L = uGridStep;
+
+    float fx = mod(p.x + L * 0.5, L) - L * 0.5;
+    float diag1 = p.x * 0.5 + p.y * 0.8660254;
+    float fd1 = mod(diag1 + L * 0.5, L) - L * 0.5;
+    float diag2 = p.x * 0.5 - p.y * 0.8660254;
+    float fd2 = mod(diag2 + L * 0.5, L) - L * 0.5;
+
+    return sqrt(fx*fx + fd1*fd1 + fd2*fd2);
 }
 
 void main() {
@@ -67,11 +111,32 @@ void main() {
         vec3 c0 = vec3(1.0, 1.0, 0.0);
         vec3 c1 = vec3(0.0, 1.0, 1.0);
         vec3 c2 = vec3(1.0, 0.0, 1.0);
-
         float a = 1.0;
         finalColor = mix(finalColor, c2, smoothstep(0.02, 0.0, edgeDist(vTileUV2)) * a);
         finalColor = mix(finalColor, c1, smoothstep(0.02, 0.0, edgeDist(vTileUV1)) * a);
         finalColor = mix(finalColor, c0, smoothstep(0.02, 0.0, edgeDist(vTileUV0)) * a);
+    }
+
+    if (showHexGrid > 0.5) {
+        float dLine = hexGridDist(vWorldXZ);
+        float alphaLine = smoothstep(0.08, 0.0, dLine) * 0.4;
+        finalColor = mix(finalColor, vec3(1.0, 1.0, 0.0), alphaLine);
+    }
+
+    if (showSpectralMixing > 0.5) {
+        float dPoint = hexPointDist(vWorldXZ);
+        float L = uGridStep;
+        float m = (vWorldXZ.x / L + vWorldXZ.y / (L * 0.8660254)) / 2.0;
+        float n = (vWorldXZ.x / L - vWorldXZ.y / (L * 0.8660254)) / 2.0;
+        float m0 = floor(m + 0.5);
+        float n0 = floor(n + 0.5);
+        int spectrum = getSpectrumAtNode(m0, n0);
+        vec3 nodeColor;
+        if (spectrum == 0) nodeColor = vec3(1.0, 0.0, 0.0);
+        else if (spectrum == 1) nodeColor = vec3(0.0, 1.0, 0.0);
+        else nodeColor = vec3(0.0, 0.0, 1.0);
+        float alphaPoint = smoothstep(0.2, 0.0, dPoint) * 0.7;
+        finalColor = mix(finalColor, nodeColor, alphaPoint);
     }
 
     gl_FragColor = vec4(finalColor, 1.0);

@@ -101,6 +101,50 @@ tileBorderToggle.onclick = () => {
 document.body.appendChild(tileBorderToggle);
 
 // ───────────────────────────────────
+// UI: Hex grid toggle
+// ───────────────────────────────────
+let showHexGrid = false;
+const hexGridToggle = document.createElement("button");
+hexGridToggle.textContent = "hex grid";
+hexGridToggle.style.position = "fixed";
+hexGridToggle.style.top = "130px";
+hexGridToggle.style.right = "10px";
+hexGridToggle.style.zIndex = "1001";
+hexGridToggle.style.padding = "8px 16px";
+hexGridToggle.style.background = "#222";
+hexGridToggle.style.color = "#fff";
+hexGridToggle.style.border = "none";
+hexGridToggle.style.borderRadius = "6px";
+hexGridToggle.style.cursor = "pointer";
+hexGridToggle.onclick = () => {
+    showHexGrid = !showHexGrid;
+    waterMaterial.setFloat("showHexGrid", showHexGrid ? 1.0 : 0.0);
+};
+document.body.appendChild(hexGridToggle);
+
+// ───────────────────────────────────
+// UI: Spectral mixing toggle
+// ───────────────────────────────────
+let showSpectralMixing = false;
+const spectralToggle = document.createElement("button");
+spectralToggle.textContent = "spectral mix";
+spectralToggle.style.position = "fixed";
+spectralToggle.style.top = "170px";
+spectralToggle.style.right = "10px";
+spectralToggle.style.zIndex = "1001";
+spectralToggle.style.padding = "8px 16px";
+spectralToggle.style.background = "#222";
+spectralToggle.style.color = "#fff";
+spectralToggle.style.border = "none";
+spectralToggle.style.borderRadius = "6px";
+spectralToggle.style.cursor = "pointer";
+spectralToggle.onclick = () => {
+    showSpectralMixing = !showSpectralMixing;
+    waterMaterial.setFloat("showSpectralMixing", showSpectralMixing ? 1.0 : 0.0);
+};
+document.body.appendChild(spectralToggle);
+
+// ───────────────────────────────────
 // UI: Normal map overlay (bottom-right)
 // ───────────────────────────────────
 // const normalSize = 200;
@@ -171,17 +215,9 @@ scene.registerBeforeRender(() => {
 const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), scene);
 
 // ───────────────────────────────────
-// Water mesh settings
-// ───────────────────────────────────
-const gridCount = 5;
-const tileWorldSize = 20;
-const totalSize = tileWorldSize * gridCount;    
-const textureSize = 128;
-const totalSubdivisions = textureSize * gridCount;
-
-// ───────────────────────────────────
 // Spectra
 // ───────────────────────────────────
+const textureSize = 128;
 const spectra = [
     new PhillipsSpectrum(textureSize, 10, engine),
     new PhillipsSpectrum(textureSize, 10, engine),
@@ -191,7 +227,7 @@ spectra[0].settings.windSpeed = 2;
 spectra[1].settings.windSpeed = 3;
 spectra[2].settings.windSpeed = 1;
 spectra[0].settings.windTheta = 0;
-spectra[1].settings.windTheta = 0.785;
+spectra[1].settings.windTheta = 0.7;
 spectra[2].settings.windTheta = 1.57 * 3;
 spectra.forEach(s => s.updateSettingsGPU());
 
@@ -215,12 +251,14 @@ skyboxMaterial.disableLighting = true;
 skybox.material = skyboxMaterial;
 
 // ───────────────────────────────────
-// Water mesh
+// Water mesh — одна сетка с LOD-пропуском
 // ───────────────────────────────────
+const totalSize = 100;
+const maxSubdiv = 640;
 const water = MeshBuilder.CreateGround("water", {
     width: totalSize,
     height: totalSize,
-    subdivisions: totalSubdivisions
+    subdivisions: maxSubdiv
 }, scene);
 water.material = waterMaterial;
 
@@ -228,12 +266,31 @@ water.material = waterMaterial;
 // Wave parameters
 // ───────────────────────────────────
 
+let lastLODSkip = -1;
+
 scene.registerBeforeRender(() => {
     const distToWater = Math.max(0.1, camera.globalPosition.y - water.position.y);
+    let lodSkip = Math.abs(distToWater/70);
+
+    if (lodSkip !== lastLODSkip) {
+        waterMaterial.setFloat("uLODSkip", lodSkip);
+        lastLODSkip = lodSkip;
+    }
+
+    //Снаппинг сетки к камере
+    // const snapSize = totalSize / 10;
+    // water.position.x = Math.floor(camera.globalPosition.x / snapSize) * snapSize;
+    // water.position.z = Math.floor(camera.globalPosition.z / snapSize) * snapSize;
 
     let amp0 = 0.005;
     let amp1 = 0.003;
     let amp2 = 0.25;
+    // let amp0 = 0.01;
+    // let amp1 = 0.006;
+    // let amp2 = 0.5;
+    // let amp0 = 0.0;
+    // let amp1 = 0.0;
+    // let amp2 = 0.0;
 
     const t0 = 20.0 * Math.atan((distToWater - 500.0) / 100.0) + 30.0;
     const t1 = 20.0 * Math.atan((distToWater - 500.0) / 100.0) + 30.0;
