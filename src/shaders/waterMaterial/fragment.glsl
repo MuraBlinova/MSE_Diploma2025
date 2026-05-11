@@ -3,6 +3,10 @@ precision highp float;
 varying vec3 vNormalW;
 varying vec3 vPositionW;
 varying vec4 vPositionClip;
+varying vec2 vUV;
+varying vec2 vTileUV0;
+varying vec2 vTileUV1;
+varying vec2 vTileUV2;
 
 uniform vec3 cameraPositionW;
 uniform vec3 lightDirection;
@@ -12,6 +16,11 @@ uniform sampler2D textureSampler;
 uniform samplerCube reflectionSampler;
 uniform sampler2D normalMapOverlay;
 uniform float showNormalMapOverlay;
+uniform float showTileBorders;
+
+float edgeDist(vec2 uv) {
+    return min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+}
 
 void main() {
     vec3 normal = vNormalW;
@@ -28,14 +37,10 @@ void main() {
 
     float ndl = max(0.0, dot(normal, -lightDirection));
 
-    float diffuseStrength = ndl * 0.8 + 0.2;
-    //vec3 deepColor = vec3(0.01, 0.05, 0.12);
     vec3 deepColor = vec3(0.02, 0.1, 0.24);
     vec3 shallowColor = vec3(0.05, 0.25, 0.4);
     vec3 diffuseColor = mix(deepColor, shallowColor, ndl);
     diffuseColor = mix(diffuseColor, backgroundColor, exp(-distanceThroughWater * 0.15));
-
-    diffuseColor = mix(diffuseColor, backgroundColor, exp(-distanceThroughWater * 0.1));
 
     if (showNormalMapOverlay > 0.5) {
         vec2 uv = vUV;
@@ -48,10 +53,8 @@ void main() {
     }
 
     vec3 viewRayW = normalize(vPositionW - cameraPositionW);
-    vec3 viewRayRefractedW = refract(viewRayW, normal, 0.75);
     vec3 viewRayReflectedW = reflect(viewRayW, normal);
 
-    // water fresnel (https://fileadmin.cs.lth.se/cs/Education/EDAF80/seminars/2022/sem_4.pdf)
     float fresnel = 0.02 + 0.98 * pow(1.0 - dot(-viewRayW, normal), 5.0);
 
     vec3 reflectedColor = textureCube(reflectionSampler, viewRayReflectedW).rgb;
@@ -59,6 +62,17 @@ void main() {
     float specular = pow(max(0.0, dot(reflect(-lightDirection, normal), viewRayW)), 720.0) * 210.0;
 
     vec3 finalColor = mix(diffuseColor * ndl, reflectedColor + specular, fresnel);
+
+    if (showTileBorders > 0.5) {
+        vec3 c0 = vec3(1.0, 1.0, 0.0);
+        vec3 c1 = vec3(0.0, 1.0, 1.0);
+        vec3 c2 = vec3(1.0, 0.0, 1.0);
+
+        float a = 1.0;
+        finalColor = mix(finalColor, c2, smoothstep(0.02, 0.0, edgeDist(vTileUV2)) * a);
+        finalColor = mix(finalColor, c1, smoothstep(0.02, 0.0, edgeDist(vTileUV1)) * a);
+        finalColor = mix(finalColor, c0, smoothstep(0.02, 0.0, edgeDist(vTileUV0)) * a);
+    }
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

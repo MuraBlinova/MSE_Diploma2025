@@ -43,13 +43,19 @@ import "@babylonjs/core/Loading/loadingScreen";
 import { WebGPUEngine } from "@babylonjs/core/Engines";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
+import { Effect } from "@babylonjs/core/Materials/effect";
+import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 import { WaterMaterial } from "./waterMaterial";
 import { PhillipsSpectrum } from "./spectrum/phillipsSpectrum";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import postProcessCode from "../shaders/smallPostProcess.glsl";
 
+// ───────────────────────────────────
+// UI: Normal map toggle
+// ───────────────────────────────────
 let showNormalMapOverlay = false;
-
 const normalMapToggle = document.createElement("button");
 normalMapToggle.textContent = "normal map";
 normalMapToggle.style.position = "fixed";
@@ -70,47 +76,49 @@ normalMapToggle.onclick = () => {
 };
 document.body.appendChild(normalMapToggle);
 
+// ───────────────────────────────────
+// UI: Tile borders toggle
+// ───────────────────────────────────
+let showTileBorders = false;
+const tileBorderToggle = document.createElement("button");
+tileBorderToggle.textContent = "tile borders";
+tileBorderToggle.style.position = "fixed";
+tileBorderToggle.style.top = "90px";
+tileBorderToggle.style.right = "10px";
+tileBorderToggle.style.zIndex = "1001";
+tileBorderToggle.style.padding = "8px 16px";
+tileBorderToggle.style.background = "#222";
+tileBorderToggle.style.color = "#fff";
+tileBorderToggle.style.border = "none";
+tileBorderToggle.style.borderRadius = "6px";
+tileBorderToggle.style.cursor = "pointer";
+tileBorderToggle.onclick = () => {
+    showTileBorders = !showTileBorders;
+    if (waterMaterial) {
+        waterMaterial.setFloat("showTileBorders", showTileBorders ? 1.0 : 0.0);
+    }
+};
+document.body.appendChild(tileBorderToggle);
+
+// ───────────────────────────────────
+// UI: Normal map overlay (bottom-right)
+// ───────────────────────────────────
 // const normalSize = 200;
-// const normalCanvases: HTMLCanvasElement[] = [];
-// const normalCtxs: CanvasRenderingContext2D[] = [];
-// const octaveLabels = [" мелкая", "средняя", "крупная"];
-// 
-// for (let i = 0; i < 3; i++) {
-//     const cnv = document.createElement("canvas");
-//     cnv.width = normalSize;
-//     cnv.height = normalSize;
-//     cnv.style.position = "fixed";
-//     cnv.style.right = `${10 + i * (normalSize + 5)}px`;
-//     cnv.style.bottom = "10px";
-//     cnv.style.border = "2px solid #333";
-//     cnv.style.background = "#111";
-//     cnv.style.zIndex = "1001";
-//     document.body.appendChild(cnv);
+// const normalCanvas = document.createElement("canvas");
+// normalCanvas.width = normalSize;
+// normalCanvas.height = normalSize;
+// normalCanvas.style.position = "fixed";
+// normalCanvas.style.right = "10px";
+// normalCanvas.style.bottom = "10px";
+// normalCanvas.style.border = "2px solid #333";
+// normalCanvas.style.background = "#111";
+// normalCanvas.style.zIndex = "1001";
+// document.body.appendChild(normalCanvas);
+// const normalCtx = normalCanvas.getContext("2d")!;
 
-//     const label = document.createElement("div");
-//     label.textContent = octaveLabels[i];
-//     label.style.position = "fixed";
-//     label.style.right = `${10 + i * (normalSize + 5)}px`;
-//     label.style.bottom = `${10 + normalSize + 4}px`;
-//     label.style.zIndex = "1001";
-//     label.style.color = "#fff";
-//     label.style.font = "10px monospace";
-//     label.style.width = `${normalSize}px`;
-//     label.style.textAlign = "center";
-//     document.body.appendChild(label);
-
-//     normalCanvases.push(cnv);
-//     normalCtxs.push(cnv.getContext("2d")!);
-// }
-
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { PostProcess } from "@babylonjs/core/PostProcesses/postProcess";
-import { Effect } from "@babylonjs/core/Materials/effect";
-
-import "@babylonjs/core/Rendering/depthRendererSceneComponent";
-
-import postProcessCode from "../shaders/smallPostProcess.glsl";
-
+// ───────────────────────────────────
+// Canvas & Engine
+// ───────────────────────────────────
 const canvas = document.getElementById("renderer") as HTMLCanvasElement;
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -122,9 +130,11 @@ if (!(await WebGPUEngine.IsSupportedAsync)) {
 const engine = new WebGPUEngine(canvas, { antialias: true });
 engine.loadingScreen.displayLoadingUI();
 await engine.initAsync();
-
 const scene = new Scene(engine);
 
+// ───────────────────────────────────
+// Camera
+// ───────────────────────────────────
 const camera = new ArcRotateCamera("camera", 3.14 / 3, 0.02 + 3.14 / 2, 15, new Vector3(0, 1.5, 0), scene);
 camera.wheelPrecision = 100;
 camera.angularSensibilityX = 3000;
@@ -132,6 +142,7 @@ camera.angularSensibilityY = 3000;
 camera.lowerRadiusLimit = 2;
 camera.attachControl();
 
+// WASD movement
 const keys: { [key: string]: boolean } = {};
 window.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
 window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
@@ -143,52 +154,58 @@ scene.registerBeforeRender(() => {
     const forwardZ = Math.sin(alpha);
     const rightX = -Math.sin(alpha);
     const rightZ = Math.cos(alpha);
-
-    let moveX = 0;
-    let moveZ = 0;
-
+    let moveX = 0, moveZ = 0;
     if (keys["w"]) { moveX -= forwardX; moveZ -= forwardZ; }
     if (keys["s"]) { moveX += forwardX; moveZ += forwardZ; }
     if (keys["a"]) { moveX -= rightX; moveZ -= rightZ; }
     if (keys["d"]) { moveX += rightX; moveZ += rightZ; }
-
     if (moveX !== 0 || moveZ !== 0) {
         const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
-        moveX /= len;
-        moveZ /= len;
-        camera.target.addInPlaceFromFloats(moveX * speed, 0, moveZ * speed);
+        camera.target.addInPlaceFromFloats(moveX / len * speed, 0, moveZ / len * speed);
     }
 });
 
+// ───────────────────────────────────
+// Light
+// ───────────────────────────────────
 const light = new DirectionalLight("light", new Vector3(1, -1, 3).normalize(), scene);
 
-const gridCount = 10;
+// ───────────────────────────────────
+// Water mesh settings
+// ───────────────────────────────────
+const gridCount = 5;
 const tileWorldSize = 20;
-const totalSize = tileWorldSize * gridCount;
+const totalSize = tileWorldSize * gridCount;    
 const textureSize = 128;
 const totalSubdivisions = textureSize * gridCount;
 
-const depthRenderer = scene.enableDepthRenderer(camera, false, true);
-
-const tileStep = tileWorldSize / 5;
+// ───────────────────────────────────
+// Spectra
+// ───────────────────────────────────
 const spectra = [
-    new PhillipsSpectrum(textureSize, 200, engine),
-    new PhillipsSpectrum(textureSize, 35, engine),
+    new PhillipsSpectrum(textureSize, 10, engine),
+    new PhillipsSpectrum(textureSize, 10, engine),
     new PhillipsSpectrum(textureSize, 10, engine),
 ];
-spectra[0].settings.windSpeed = 20;
-spectra[1].settings.windSpeed = 31;
-spectra[2].settings.windSpeed = 10;
+spectra[0].settings.windSpeed = 2;
+spectra[1].settings.windSpeed = 3;
+spectra[2].settings.windSpeed = 1;
 spectra[0].settings.windTheta = 0;
-spectra[1].settings.windTheta = 1.57;
-spectra[2].settings.windTheta = 1.57*3;
+spectra[1].settings.windTheta = 0.785;
+spectra[2].settings.windTheta = 1.57 * 3;
 spectra.forEach(s => s.updateSettingsGPU());
 
+// ───────────────────────────────────
+// Water material
+// ───────────────────────────────────
 const waterMaterial = new WaterMaterial("water", spectra, scene, engine);
-
 waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
+waterMaterial.setFloat("showTileBorders", showTileBorders ? 1.0 : 0.0);
 waterMaterial.setTexture("normalMapOverlay", waterMaterial.gradientMap);
 
+// ───────────────────────────────────
+// Skybox
+// ───────────────────────────────────
 const skybox = MeshBuilder.CreateBox("skyBox", { size: camera.maxZ / 2 }, scene);
 const skyboxMaterial = new StandardMaterial("skyBox", scene);
 skyboxMaterial.backFaceCulling = false;
@@ -197,6 +214,9 @@ skyboxMaterial.reflectionTexture.coordinatesMode = Texture.SKYBOX_MODE;
 skyboxMaterial.disableLighting = true;
 skybox.material = skyboxMaterial;
 
+// ───────────────────────────────────
+// Water mesh
+// ───────────────────────────────────
 const water = MeshBuilder.CreateGround("water", {
     width: totalSize,
     height: totalSize,
@@ -204,43 +224,37 @@ const water = MeshBuilder.CreateGround("water", {
 }, scene);
 water.material = waterMaterial;
 
+// ───────────────────────────────────
+// Wave parameters
+// ───────────────────────────────────
+
 scene.registerBeforeRender(() => {
-    const camPos = camera.globalPosition;;
-    // const snapSize = totalSize / gridCount;
+    const distToWater = Math.max(0.1, camera.globalPosition.y - water.position.y);
 
-    const distToWater = Math.max(0.1, camPos.y - water.position.y);
-    // water.position.x = Math.floor(camPos.x / snapSize) * snapSize + distToWater*Math.sin(camera.beta - camera.fov/2)*Math.sin(camera.alpha);
-    // water.position.z = Math.floor(camPos.z / snapSize) * snapSize + distToWater*Math.sin(camera.beta - camera.fov/2)*Math.cos(camera.alpha);
+    let amp0 = 0.005;
+    let amp1 = 0.003;
+    let amp2 = 0.25;
 
-    const waveScaleCoeff = 40;
-    const waveScale = Math.floor(distToWater / waveScaleCoeff) + 1;
-
-    // const t0 = tile0 + tileStep * waveScale;
-    // const t1 = tile1 + tileStep * waveScale;
-    // const t2 = tile2 + tileStep * waveScale;
-    const mu = 25;      // матожидание — пик на 3 метрах
-    const sigma = 10; // чем больше, тем шире колокол
-
-    amp0 = Math.exp(-(distToWater+30)/10 - 0.01) / 50;
-    amp1 = Math.exp(-0.5 * Math.pow((distToWater - mu) / sigma, 2)) / 50;
-    amp2 = Math.log(distToWater + 1) / Math.log(1.2) / 50;
-    // amp0 = 0;
-    // amp2 = 0;
-
-    // waterMaterial.setWaveParams(t0, t1, t2, amp0, amp1, amp2);
-    waterMaterial.setWaveParams(tile0, tile1, tile2, amp0, amp1, amp2);
+    const t0 = 20.0 * Math.atan((distToWater - 500.0) / 100.0) + 30.0;
+    const t1 = 20.0 * Math.atan((distToWater - 500.0) / 100.0) + 30.0;
+    const t2 = 20.0 * Math.atan((distToWater - 500.0) / 100.0) + 30.0;
+    waterMaterial.setAllWaveParams(
+        t0, t0*2, t0*8,   amp0, amp1, amp2,
+        t1, t1*2, t1*8,   amp0, amp1, amp2,
+        t2, t2*2, t2*8,   amp0, amp1, amp2
+    );
 });
 
+// ───────────────────────────────────
+// Post process
+// ───────────────────────────────────
+const depthRenderer = scene.enableDepthRenderer(camera, false, true);
 Effect.ShadersStore[`PostProcess1FragmentShader`] = postProcessCode;
 const postProcess = new PostProcess(
-    "postProcess1",
-    "PostProcess1",
+    "postProcess1", "PostProcess1",
     ["cameraInverseView", "cameraInverseProjection", "cameraPosition"],
     ["textureSampler", "depthSampler"],
-    1,
-    camera,
-    Texture.BILINEAR_SAMPLINGMODE,
-    engine
+    1, camera, Texture.BILINEAR_SAMPLINGMODE, engine
 );
 postProcess.onApplyObservable.add((effect) => {
     effect.setTexture("depthSampler", depthRenderer.getDepthMap());
@@ -253,212 +267,55 @@ function updateScene() {
     waterMaterial.update(deltaSeconds, light.direction);
 }
 
-// const panel = document.createElement("div");
-// panel.style.position = "fixed";
-// panel.style.top = "90px";
-// panel.style.right = "10px";
-// panel.style.zIndex = "1001";
-// panel.style.background = "rgba(0,0,0,0.8)";
-// panel.style.color = "#fff";
-// panel.style.padding = "12px";
-// panel.style.borderRadius = "8px";
-// panel.style.font = "12px monospace";
-// panel.style.display = "flex";
-// panel.style.flexDirection = "column";
-// panel.style.gap = "6px";
-// panel.style.width = "220px";
-// document.body.appendChild(panel);
-
-// const title = document.createElement("div");
-// title.textContent = "Wave Params";
-// title.style.fontWeight = "bold";
-// title.style.marginBottom = "4px";
-// panel.appendChild(title);
-
-let tile0 = tileWorldSize-tileStep, tile1 = tileWorldSize, tile2 = tileWorldSize + tileStep;
-let amp0 = 0.02, amp1 = 0.02, amp2 = 0.02;
-
-// const sliderDefs = [
-//     { label: "Tile 0 (small)", uniform: "tile0", min: 0, max: tileWorldSize/15, step: tileWorldSize/15, val: () => tile0, set: (v: number) => { tile0 = v; } },
-//     { label: "Tile 1 (medium)", uniform: "tile1", min: tileWorldSize/3, max: tileWorldSize, step: tileWorldSize/3, val: () => tile1, set: (v: number) => { tile1 = v; } },
-//     { label: "Tile 2 (large)", uniform: "tile2", min: tileWorldSize/2, max: tileWorldSize*10, step: tileWorldSize/2, val: () => tile2, set: (v: number) => { tile2 = v; } },
-//     { label: "Amp 0 (small)", uniform: "amp0", min: 0, max: 0.5, step: 0.001, val: () => amp0, set: (v: number) => { amp0 = v; } },
-//     { label: "Amp 1 (medium)", uniform: "amp1", min: 0, max: 0.05, step: 0.001, val: () => amp1, set: (v: number) => { amp1 = v; } },
-//     { label: "Amp 2 (large)", uniform: "amp2", min: 0, max: 0.05, step: 0.001, val: () => amp2, set: (v: number) => { amp2 = v; } },
-// ];
-// 
-// sliderDefs.forEach((def) => {
-//     const row = document.createElement("div");
-//     row.style.display = "flex";
-//     row.style.alignItems = "center";
-//     row.style.gap = "6px";
-
-//     const label = document.createElement("label");
-//     label.textContent = def.label;
-//     label.style.width = "90px";
-//     label.style.fontSize = "10px";
-
-//     const input = document.createElement("input");
-//     input.type = "range";
-//     input.min = String(def.min);
-//     input.max = String(def.max);
-//     input.step = String(def.step);
-//     input.value = String(def.val());
-//     input.style.flex = "1";
-//     input.style.height = "14px";
-
-//     const valueDisplay = document.createElement("span");
-//     valueDisplay.textContent = String(def.val());
-//     valueDisplay.style.width = "36px";
-//     valueDisplay.style.textAlign = "right";
-//     valueDisplay.style.fontSize = "10px";
-
-//     input.addEventListener("input", () => {
-//         const v = parseFloat(input.value);
-//         valueDisplay.textContent = String(v);
-//         def.set(v);
-//     });
-
-//     row.appendChild(label);
-//     row.appendChild(input);
-//     row.appendChild(valueDisplay);
-//     panel.appendChild(row);
-// });
-
-// const resetBtn = document.createElement("button");
-// resetBtn.textContent = "Reset";
-// resetBtn.style.marginTop = "4px";
-// resetBtn.style.padding = "4px";
-// resetBtn.style.background = "#444";
-// resetBtn.style.color = "#fff";
-// resetBtn.style.border = "none";
-// resetBtn.style.borderRadius = "4px";
-// resetBtn.style.cursor = "pointer";
-// resetBtn.onclick = () => {
-//     tile0 = tileWorldSize/3; tile1 = tileWorldSize/2; tile2 = tileWorldSize;
-//     amp0 = 0.02; amp1 = 0.02; amp2 = 0.02;
-//     const inputs = panel.querySelectorAll("input[type=range]");
-//     inputs.forEach((inp, i) => {
-//         (inp as HTMLInputElement).value = String(sliderDefs[i].val());
-//         const span = (inp as HTMLInputElement).nextElementSibling as HTMLSpanElement;
-//         if (span) span.textContent = String(sliderDefs[i].val());
-//     });
-// };
-// panel.appendChild(resetBtn);
-
+// ───────────────────────────────────
+// Render loop
+// ───────────────────────────────────
 scene.executeWhenReady(() => {
-
     engine.loadingScreen.hideLoadingUI();
     scene.registerBeforeRender(() => updateScene());
 
     let lastFpsPrint = performance.now();
     let frameCount = 0;
-    let lastFps = 0;
 
-    // WebGPU GPUQuerySet (timing)
-
-    // WebGPU types fallback for TS
-    const gpu = (navigator as any).gpu || (window as any).gpu;
-    const GPUBufferUsage = gpu?.BufferUsage || { MAP_READ: 0x0001, COPY_SRC: 0x0004, QUERY_RESOLVE: 0x8000 };
-    const GPUMapMode = gpu?.MapMode || { READ: 0x0001 };
-
-    let gpuQuerySet: GPUQuerySet | null = null;
-    let gpuDevice: GPUDevice | null = null;
-    if (engine._device && "createQuerySet" in engine._device) {
-        gpuDevice = engine._device as GPUDevice;
-        try { gpuQuerySet = gpuDevice.createQuerySet({ type: "timestamp", count: 2 }); } catch {}
-    }
-    let queryBuffer: GPUBuffer | null = null;
-    if (gpuDevice && gpuQuerySet) {
-        queryBuffer = gpuDevice.createBuffer({
-            size: 16,
-            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_READ,
-            mappedAtCreation: false
-        });
-    }
-    let gpuTimeMs = 0;
-
-    engine.runRenderLoop(async () => {
-        if (gpuDevice && gpuQuerySet && gpuDevice.createCommandEncoder) {
-            const encoder = gpuDevice.createCommandEncoder();
-            if ((encoder as any).writeTimestamp) (encoder as any).writeTimestamp(gpuQuerySet, 0);
-            if (gpuDevice.queue && gpuDevice.queue.submit) gpuDevice.queue.submit([encoder.finish()]);
-        }
-
+    engine.runRenderLoop(() => {
         scene.render();
         frameCount++;
 
-        // const gradientMaps = [
-        //     waterMaterial.gradientMap,
-        //     waterMaterial.gradientMap1,
-        //     waterMaterial.gradientMap2,
-        // ];
-
-        // for (let i = 0; i < 3; i++) {
-        //     const ctx = normalCtxs[i];
-        //     const gmap = gradientMaps[i];
-        //     if (ctx && gmap && gmap.isReady()) {
-        //         (async () => {
-        //             const size = gmap.getSize().width;
-        //             const buffer = (await gmap.readPixels(0, 0, null, true, true)) as Float32Array;
-        //             if (!buffer) return;
-        //             const imageData = ctx.createImageData(normalSize, normalSize);
-        //             for (let y = 0; y < normalSize; y++) {
-        //                 for (let x = 0; x < normalSize; x++) {
-        //                     const u = x / (normalSize - 1);
-        //                     const v = y / (normalSize - 1);
-        //                     const ix = Math.floor(u * (size - 1));
-        //                     const iy = Math.floor(v * (size - 1));
-        //                     const idx = (iy * size + ix) * 2;
-        //                     let nx = buffer[idx];
-        //                     let nz = buffer[idx + 1];
-        //                     nx = Math.max(-1, Math.min(1, nx));
-        //                     nz = Math.max(-1, Math.min(1, nz));
-        //                     const r = Math.floor((nx * 0.5 + 0.5) * 255);
-        //                     const g = 128;
-        //                     const b = Math.floor((nz * 0.5 + 0.5) * 255);
-        //                     const a = 255;
-        //                     const id = (y * normalSize + x) * 4;
-        //                     imageData.data[id] = r;
-        //                     imageData.data[id + 1] = g;
-        //                     imageData.data[id + 2] = b;
-        //                     imageData.data[id + 3] = a;
-        //                 }
+        // if (normalCtx && waterMaterial.gradientMap.isReady() && frameCount % 60 === 0) {
+        //     (async () => {
+        //         const size = waterMaterial.gradientMap.getSize().width;
+        //         const buffer = (await waterMaterial.gradientMap.readPixels(0, 0, null, true, true)) as Float32Array;
+        //         if (!buffer) return;
+        //         const imageData = normalCtx.createImageData(normalSize, normalSize);
+        //         for (let y = 0; y < normalSize; y++) {
+        //             for (let x = 0; x < normalSize; x++) {
+        //                 const u = x / (normalSize - 1);
+        //                 const v = y / (normalSize - 1);
+        //                 const ix = Math.floor(u * (size - 1));
+        //                 const iy = Math.floor(v * (size - 1));
+        //                 const idx = (iy * size + ix) * 2;
+        //                 let nx = buffer[idx];
+        //                 let nz = buffer[idx + 1];
+        //                 nx = Math.max(-1, Math.min(1, nx));
+        //                 nz = Math.max(-1, Math.min(1, nz));
+        //                 const r = Math.floor((nx * 0.5 + 0.5) * 255);
+        //                 const g = 128;
+        //                 const b = Math.floor((nz * 0.5 + 0.5) * 255);
+        //                 const id = (y * normalSize + x) * 4;
+        //                 imageData.data[id] = r;
+        //                 imageData.data[id + 1] = g;
+        //                 imageData.data[id + 2] = b;
+        //                 imageData.data[id + 3] = 255;
         //             }
-        //             ctx.putImageData(imageData, 0, 0);
-        //         })();
-        //     }
+        //         }
+        //         normalCtx.putImageData(imageData, 0, 0);
+        //     })();
         // }
 
-        if (gpuDevice && gpuQuerySet && queryBuffer && gpuDevice.createCommandEncoder) {
-            const encoder = gpuDevice.createCommandEncoder();
-            if ((encoder as any).writeTimestamp) (encoder as any).writeTimestamp(gpuQuerySet, 1);
-            if ((encoder as any).resolveQuerySet) (encoder as any).resolveQuerySet(gpuQuerySet, 0, 2, queryBuffer, 0);
-            if (gpuDevice.queue && gpuDevice.queue.submit) gpuDevice.queue.submit([encoder.finish()]);
-            try {
-                if (queryBuffer.mapAsync) {
-                    await queryBuffer.mapAsync(GPUMapMode.READ);
-                    const arr = new BigUint64Array(queryBuffer.getMappedRange());
-                    const t0 = Number(arr[0]);
-                    const t1 = Number(arr[1]);
-                    gpuTimeMs = (t1 - t0) / 1e6;
-                    if (queryBuffer.unmap) queryBuffer.unmap();
-                }
-            } catch {}
-        }
-
         const now = performance.now();
-        const distToWater = camera.globalPosition.y - water.position.y;
-        const waveScaleCoeff = 40;
-        const waveScale = Math.floor(distToWater / waveScaleCoeff) + 1;
-
         if (now - lastFpsPrint > 1000) {
-            lastFps = frameCount;
-            console.log("FPS:", lastFps, gpuTimeMs ? `| GPU frame: ${gpuTimeMs.toFixed(2)} ms` : "");
-            console.log("Высота:", distToWater.toFixed(1), "м | Scale:", waveScale);
-            console.log("tile:", tile0 + tileStep * waveScale, tile1 * waveScale, tile2 * waveScale);
-            console.log("amp:", amp0, amp1, amp2);
-            fpsOverlay.textContent = `FPS: ${lastFps}` + (gpuTimeMs ? ` | GPU: ${gpuTimeMs.toFixed(2)} ms` : "");
+            console.log("FPS:", frameCount);
+            fpsOverlay.textContent = `FPS: ${frameCount}`;
             frameCount = 0;
             lastFpsPrint = now;
         }
