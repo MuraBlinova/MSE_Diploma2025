@@ -27,12 +27,6 @@ const config = {
             template: path.join(htmlPath, "index.html"),
             chunks: ["index"]
         }),
-        new HtmlWebpackPlugin({
-            title: "WebGPU Planet",
-            filename: "planet.html",
-            template: path.join(htmlPath, "index.html"),
-            chunks: ["planet"]
-        }),
         new MiniCssExtractPlugin()
     ],
 
