@@ -20,6 +20,8 @@ uniform float showSpectralMixing;
 uniform float uGridStep;
 uniform float uBlendSigma;
 uniform float uLODSkip;
+uniform float showPerlinNoise;
+uniform float uPerlinStrength;
 
 varying vec3 vNormalW;
 varying vec3 vPositionW;
@@ -32,6 +34,23 @@ varying vec2 vWorldXZ;
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float rand(vec2 n) { 
+    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+float perlinNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = rand(i);
+    float b = rand(i + vec2(1.0, 0.0));
+    float c = rand(i + vec2(0.0, 1.0));
+    float d = rand(i + vec2(1.0, 1.0));
+
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 float getWeight(vec2 worldXZ, float seed) {
@@ -90,12 +109,14 @@ vec2 sampleDisplacementOctave(int octave, vec2 worldXZ, float tileSize) {
 }
 
 float totalHeight(vec2 worldXZ) {
+    float baseHeight;
+
     if (showSpectralMixing > 0.5) {
         float w0 = getWeight(worldXZ, 0.0);
         float w1 = getWeight(worldXZ, 0.33);
         float w2 = getWeight(worldXZ, 0.67);
 
-        return (
+        baseHeight = 
             sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] * w0 +
             sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] * w0 +
             sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] * w0 +
@@ -104,10 +125,9 @@ float totalHeight(vec2 worldXZ) {
             sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] * w1 +
             sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] * w2 +
             sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] * w2 +
-            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2
-        ) * 0.5;
+            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2;
     } else {
-        return (
+        baseHeight =
             sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] +
             sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] +
             sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] +
@@ -116,18 +136,26 @@ float totalHeight(vec2 worldXZ) {
             sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] +
             sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] +
             sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] +
-            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2]
-        ) * 0.5;
+            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2];
     }
+
+    if (showPerlinNoise > 0.5) {
+        float perlin = perlinNoise(worldXZ * 0.3) * uPerlinStrength;
+        baseHeight += perlin;
+    }
+
+    return baseHeight * 0.5;
 }
 
 vec2 totalDisplacement(vec2 worldXZ) {
+    vec2 baseDisp;
+
     if (showSpectralMixing > 0.5) {
         float w0 = getWeight(worldXZ, 0.0);
         float w1 = getWeight(worldXZ, 0.33);
         float w2 = getWeight(worldXZ, 0.67);
 
-        return (
+        baseDisp =
             sampleDisplacementOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] * w0 +
             sampleDisplacementOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] * w0 +
             sampleDisplacementOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] * w0 +
@@ -136,10 +164,9 @@ vec2 totalDisplacement(vec2 worldXZ) {
             sampleDisplacementOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] * w1 +
             sampleDisplacementOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] * w2 +
             sampleDisplacementOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] * w2 +
-            sampleDisplacementOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2
-        );
+            sampleDisplacementOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2;
     } else {
-        return (
+        baseDisp =
             sampleDisplacementOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] +
             sampleDisplacementOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] +
             sampleDisplacementOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] +
@@ -148,13 +175,20 @@ vec2 totalDisplacement(vec2 worldXZ) {
             sampleDisplacementOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] +
             sampleDisplacementOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] +
             sampleDisplacementOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] +
-            sampleDisplacementOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2]
-        );
+            sampleDisplacementOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2];
     }
+
+    if (showPerlinNoise > 0.5) {
+        float px = perlinNoise(worldXZ * 0.3 + vec2(100.0, 0.0));
+        float pz = perlinNoise(worldXZ * 0.3 + vec2(0.0, 100.0));
+        baseDisp += vec2(px, pz) * uPerlinStrength * 0.3;
+    }
+
+    return baseDisp;
 }
 
 void main() {
-    float skip = 1.0 + log2(uLODSkip + 1.0)/log2(10);
+    float skip = log2(uLODSkip + 1.0) / log2(10.0);
     vec2 worldXZ = (position.xz / skip + 0.5) * skip;
 
     float waveHeight = totalHeight(worldXZ);

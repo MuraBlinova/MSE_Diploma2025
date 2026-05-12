@@ -54,6 +54,7 @@ export class WaterMaterial extends ShaderMaterial {
                 "world", "worldView", "worldViewProjection", "view", "projection",
                 "cameraPositionW", "lightDirection",
                 "uTiles", "uAmps", "uGridStep",
+                "showPerlinNoise", "uPerlinStrength",
                 "showNormalMapOverlay", "showTileBorders", "showHexGrid", "showSpectralMixing",
                 "uGridStep", "uBlendSigma", "uLODSkip"
             ],
@@ -96,6 +97,9 @@ export class WaterMaterial extends ShaderMaterial {
         this.setFloat("uGridStep", 15.0);
         this.setFloat("uBlendSigma", 1.0);
         this.setFloat("uLODSkip", 0.0);
+
+        this.setFloat("showPerlinNoise", 0.0);
+        this.setFloat("uPerlinStrength", 0.5);
 
         this.depthRenderer = scene.enableDepthRenderer(scene.activeCamera, false, true);
         this.setTexture("depthSampler", this.depthRenderer.getDepthMap());

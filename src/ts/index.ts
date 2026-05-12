@@ -19,6 +19,7 @@ wireframeToggle.onclick = () => {
             mesh.material.wireframe = showWireframe;
         }
     });
+    wireframeToggle.style.background = showWireframe ? "#0a0" : "#222";
 };
 document.body.appendChild(wireframeToggle);
 import "../styles/index.css";
@@ -72,6 +73,7 @@ normalMapToggle.onclick = () => {
     showNormalMapOverlay = !showNormalMapOverlay;
     if (waterMaterial) {
         waterMaterial.setFloat("showNormalMapOverlay", showNormalMapOverlay ? 1.0 : 0.0);
+        normalMapToggle.style.background = showNormalMapOverlay ? "#0a0" : "#222";
     }
 };
 document.body.appendChild(normalMapToggle);
@@ -97,6 +99,7 @@ tileBorderToggle.onclick = () => {
     if (waterMaterial) {
         waterMaterial.setFloat("showTileBorders", showTileBorders ? 1.0 : 0.0);
     }
+    tileBorderToggle.style.background = showTileBorders ? "#0a0" : "#222";
 };
 document.body.appendChild(tileBorderToggle);
 
@@ -107,7 +110,7 @@ let showHexGrid = false;
 const hexGridToggle = document.createElement("button");
 hexGridToggle.textContent = "hex grid";
 hexGridToggle.style.position = "fixed";
-hexGridToggle.style.top = "130px";
+hexGridToggle.style.top = "170px";
 hexGridToggle.style.right = "10px";
 hexGridToggle.style.zIndex = "1001";
 hexGridToggle.style.padding = "8px 16px";
@@ -119,8 +122,32 @@ hexGridToggle.style.cursor = "pointer";
 hexGridToggle.onclick = () => {
     showHexGrid = !showHexGrid;
     waterMaterial.setFloat("showHexGrid", showHexGrid ? 1.0 : 0.0);
+    hexGridToggle.style.background = showHexGrid ? "#0a0" : "#222";
 };
 document.body.appendChild(hexGridToggle);
+
+// ───────────────────────────────────
+// UI: Perlin noise toggle
+// ───────────────────────────────────
+let showPerlinNoise = false;
+const perlinToggle = document.createElement("button");
+perlinToggle.textContent = "perlin";
+perlinToggle.style.position = "fixed";
+perlinToggle.style.top = "130px";
+perlinToggle.style.right = "10px";
+perlinToggle.style.zIndex = "1001";
+perlinToggle.style.padding = "8px 16px";
+perlinToggle.style.background = "#222";
+perlinToggle.style.color = "#fff";
+perlinToggle.style.border = "none";
+perlinToggle.style.borderRadius = "6px";
+perlinToggle.style.cursor = "pointer";
+perlinToggle.onclick = () => {
+    showPerlinNoise = !showPerlinNoise;
+    waterMaterial.setFloat("showPerlinNoise", showPerlinNoise ? 1.0 : 0.0);
+    perlinToggle.style.background = showPerlinNoise ? "#0a0" : "#222";
+};
+document.body.appendChild(perlinToggle);
 
 // ───────────────────────────────────
 // UI: Spectral mixing toggle
@@ -129,7 +156,7 @@ let showSpectralMixing = false;
 const spectralToggle = document.createElement("button");
 spectralToggle.textContent = "spectral mix";
 spectralToggle.style.position = "fixed";
-spectralToggle.style.top = "170px";
+spectralToggle.style.top = "210px";
 spectralToggle.style.right = "10px";
 spectralToggle.style.zIndex = "1001";
 spectralToggle.style.padding = "8px 16px";
@@ -141,6 +168,8 @@ spectralToggle.style.cursor = "pointer";
 spectralToggle.onclick = () => {
     showSpectralMixing = !showSpectralMixing;
     waterMaterial.setFloat("showSpectralMixing", showSpectralMixing ? 1.0 : 0.0);
+    spectralToggle.style.background = showSpectralMixing ? "#0a0" : "#222";
+    console.log("Spectral mixing:", showSpectralMixing ? "ON" : "OFF");
 };
 document.body.appendChild(spectralToggle);
 
@@ -270,20 +299,19 @@ let lastLODSkip = -1;
 
 scene.registerBeforeRender(() => {
     const distToWater = Math.max(0.1, camera.globalPosition.y - water.position.y);
-    let lodSkip = Math.abs(distToWater/70);
+    let lodSkip = Math.abs(distToWater/10);
 
     if (lodSkip !== lastLODSkip) {
         waterMaterial.setFloat("uLODSkip", lodSkip);
         lastLODSkip = lodSkip;
     }
 
-    //Снаппинг сетки к камере
     // const snapSize = totalSize / 10;
     // water.position.x = Math.floor(camera.globalPosition.x / snapSize) * snapSize;
     // water.position.z = Math.floor(camera.globalPosition.z / snapSize) * snapSize;
 
     let amp0 = 0.005;
-    let amp1 = 0.003;
+    let amp1 = 0.03;
     let amp2 = 0.25;
     // let amp0 = 0.01;
     // let amp1 = 0.006;
@@ -371,7 +399,7 @@ scene.executeWhenReady(() => {
 
         const now = performance.now();
         if (now - lastFpsPrint > 1000) {
-            console.log("FPS:", frameCount);
+            console.log("FPS:", frameCount, "distToWater:", camera.globalPosition.y - water.position.y, "lodSkip:", lastLODSkip.toFixed(2));
             fpsOverlay.textContent = `FPS: ${frameCount}`;
             frameCount = 0;
             lastFpsPrint = now;
