@@ -79,10 +79,27 @@ export class PhillipsSpectrum implements InitialSpectrum {
         this.computeShader.dispatchWhenReady(Math.ceil(this.textureSize / 8), Math.ceil(this.textureSize / 8), 1);
     }
 
+    public regenerate(): void {
+        this.uniformBuffer.updateFloat("windTheta", this.settings.windTheta);
+        this.uniformBuffer.updateFloat("windSpeed", this.settings.windSpeed);
+        this.uniformBuffer.updateFloat("smallWaveLengthCutOff", this.settings.smallWaveLengthCutOff);
+        this.uniformBuffer.update();
+        
+        this.computeShader.setStorageTexture("H0", this.h0);
+        this.computeShader.setTexture("Noise", this.gaussianNoise, false);
+        this.computeShader.setUniformBuffer("params", this.uniformBuffer);
+        this.computeShader.dispatchWhenReady(
+            Math.ceil(this.textureSize / 8), 
+            Math.ceil(this.textureSize / 8), 
+            1
+        );
+    }
+
     /**
      * Every time a setting is changed on the CPU, the GPU settings must be updated. Call this method to do so.
      */
     public updateSettingsGPU() {
         this.uniformBuffer.update();
+        this.regenerate();
     }
 }
