@@ -47,12 +47,12 @@ export function createPreview(
     const preview = document.createElement('img');
     preview.src = src;
     preview.style.position = 'fixed';
-    preview.style.bottom = '${bottom}px';
-    preview.style.right = '${right}px';
+    preview.style.bottom = `${bottom}px`;
+    preview.style.right = `${right}px`;
     preview.style.width = '150px';
     preview.style.height = '150px';
     preview.style.zIndex = '1002';
-    preview.style.border = '2px solid ${borderColor}';
+    preview.style.border = `2px solid ${borderColor}`;
     preview.style.display = 'none';
     if (id) preview.id = id;
     document.body.appendChild(preview);
