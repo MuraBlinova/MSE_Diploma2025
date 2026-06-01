@@ -8,6 +8,7 @@ varying vec2 vTileUV0;
 varying vec2 vTileUV1;
 varying vec2 vTileUV2;
 varying vec2 vWangXZ;
+varying vec2 vWorldXZ;
 
 uniform vec3 cameraPositionW;
 uniform vec3 lightDirection;
@@ -123,13 +124,13 @@ void main() {
     }
 
     if (showHexGrid > 0.5) {
-        float dLine = hexGridDist(vWangXZ);
+        float dLine = hexGridDist(vWorldXZ);
         float alphaLine = smoothstep(0.08, 0.0, dLine) * 0.4;
         finalColor = mix(finalColor, vec3(1.0, 1.0, 0.0), alphaLine);
-        float dPoint = hexPointDist(vWangXZ);
+        float dPoint = hexPointDist(vWorldXZ);
         float L = uGridStep;
-        float m = (vWangXZ.x / L + vWangXZ.y / (L * 0.8660254)) / 2.0;
-        float n = (vWangXZ.x / L - vWangXZ.y / (L * 0.8660254)) / 2.0;
+        float m = (vWorldXZ.x / L + vWorldXZ.y / (L * 0.8660254)) / 2.0;
+        float n = (vWorldXZ.x / L - vWorldXZ.y / (L * 0.8660254)) / 2.0;
         float m0 = floor(m + 0.5);
         float n0 = floor(n + 0.5);
         int spectrum = getSpectrumAtNode(m0, n0);

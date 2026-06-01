@@ -19,7 +19,7 @@ uniform sampler2D wangSpectraMap;
 
 uniform mat3 uTiles;
 uniform mat3 uAmps;
-uniform float showSpectralMixing;
+uniform float showHexlMixing;
 uniform float uGridStep;
 uniform float uBlendSigma;
 uniform float uLODSkip;
@@ -67,7 +67,6 @@ float getWeight(vec2 worldXZ, float seed) {
     float h0 = fract(hash(node0) + seed), h1 = fract(hash(node1) + seed), h2 = fract(hash(node2) + seed);
     float d0 = length(worldXZ - node0), d1 = length(worldXZ - node1), d2 = length(worldXZ - node2);
     float sigma = uGridStep * uBlendSigma;
-    
     float w0 = 1.0 / (1.0 + exp((d0 - sigma) / (sigma * 0.25)));
     float w1 = 1.0 / (1.0 + exp((d1 - sigma) / (sigma * 0.25)));
     float w2 = 1.0 / (1.0 + exp((d2 - sigma) / (sigma * 0.25)));
@@ -193,11 +192,29 @@ float totalHeight(vec2 worldXZ) {
             sampleHeightOctave(9, worldXZ, uTiles[0][1]) * uAmps[0][1] +
             sampleHeightOctave(9, worldXZ, uTiles[0][2]) * uAmps[0][2];
         baseHeight = h0 * weights.x + h1 * weights.y + h2 * weights.z + h3 * weights.w;
-    } else if (showSpectralMixing > 0.5) {
+    } else if (showHexlMixing > 0.5) {
         float w0 = getWeight(worldXZ, 0.0), w1 = getWeight(worldXZ, 0.33), w2 = getWeight(worldXZ, 0.67);
-        baseHeight = (sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] * w0 + sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] * w0 + sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] * w0 + sampleHeightOctave(3, worldXZ, uTiles[1][0]) * uAmps[1][0] * w1 + sampleHeightOctave(4, worldXZ, uTiles[1][1]) * uAmps[1][1] * w1 + sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] * w1 + sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] * w2 + sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] * w2 + sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2)/2.8;
+        baseHeight = (
+            sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] * w0 +
+            sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] * w0 +
+            sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] * w0 +
+            sampleHeightOctave(3, worldXZ, uTiles[1][0]) * uAmps[1][0] * w1 +
+            sampleHeightOctave(4, worldXZ, uTiles[1][1]) * uAmps[1][1] * w1 + 
+            sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] * w1 +
+            sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] * w2 +
+            sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] * w2 +
+            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2)/(w0 + w1 + w2);
     } else {
-        baseHeight = (sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] + sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] + sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] + sampleHeightOctave(3, worldXZ, uTiles[1][0]) * uAmps[1][0] + sampleHeightOctave(4, worldXZ, uTiles[1][1]) * uAmps[1][1] + sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] + sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] + sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] + sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2])/3;
+        baseHeight = (
+            sampleHeightOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] +
+            sampleHeightOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] +
+            sampleHeightOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] +
+            sampleHeightOctave(3, worldXZ, uTiles[1][0]) * uAmps[1][0] +
+            sampleHeightOctave(4, worldXZ, uTiles[1][1]) * uAmps[1][1] +
+            sampleHeightOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] +
+            sampleHeightOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] +
+            sampleHeightOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] +
+            sampleHeightOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2])/3;
     }
     if (showPerlinNoise > 0.5) baseHeight += perlinNoise(worldXZ * 0.3) * uPerlinStrength;
     return baseHeight * 0.5;
@@ -224,7 +241,7 @@ vec2 totalDisplacement(vec2 worldXZ) {
             sampleDisplacementOctave(9, worldXZ, uTiles[0][1]) * uAmps[0][1] +
             sampleDisplacementOctave(9, worldXZ, uTiles[0][2]) * uAmps[0][2];
         baseDisp = d0 * weights.x + d1 * weights.y + d2 * weights.z + d3 * weights.w;
-    } else if (showSpectralMixing > 0.5) {
+    } else if (showHexlMixing > 0.5) {
         float w0 = getWeight(worldXZ, 0.0), w1 = getWeight(worldXZ, 0.33), w2 = getWeight(worldXZ, 0.67);
         baseDisp = (sampleDisplacementOctave(0, worldXZ, uTiles[0][0]) * uAmps[0][0] * w0 + sampleDisplacementOctave(1, worldXZ, uTiles[0][1]) * uAmps[0][1] * w0 + sampleDisplacementOctave(2, worldXZ, uTiles[0][2]) * uAmps[0][2] * w0 + sampleDisplacementOctave(3, worldXZ, uTiles[1][0]) * uAmps[1][0] * w1 + sampleDisplacementOctave(4, worldXZ, uTiles[1][1]) * uAmps[1][1] * w1 + sampleDisplacementOctave(5, worldXZ, uTiles[1][2]) * uAmps[1][2] * w1 + sampleDisplacementOctave(6, worldXZ, uTiles[2][0]) * uAmps[2][0] * w2 + sampleDisplacementOctave(7, worldXZ, uTiles[2][1]) * uAmps[2][1] * w2 + sampleDisplacementOctave(8, worldXZ, uTiles[2][2]) * uAmps[2][2] * w2)/2.8;
     } else {

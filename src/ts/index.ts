@@ -66,7 +66,7 @@ createButton("perlin", 130, 10, (btn) => {
 });
 
 let showHexlMixing = false;
-const HexMixdBtn = createButton("spectral mix", 170, 10, (btn) => {
+const HexMixdBtn = createButton("hex mix", 170, 10, (btn) => {
     if(wangSpectrumEnabled){ WangMixBtn.click(); }
     showHexlMixing = !showHexlMixing;
     waterMaterial.setFloat("showHexlMixing", showHexlMixing ? 1.0 : 0.0);
@@ -124,11 +124,11 @@ const spectra = [
 ];
 spectra[0].settings.windSpeed = 100;
 spectra[1].settings.windSpeed = 10;
-spectra[2].settings.windSpeed = 30;
+spectra[2].settings.windSpeed = 90;
 spectra[3].settings.windSpeed = 20;
 spectra[0].settings.windTheta = 0;
 spectra[1].settings.windTheta = Math.PI / 2;
-spectra[2].settings.windTheta = Math.PI / 4;
+spectra[2].settings.windTheta = Math.PI;
 spectra[3].settings.windTheta = Math.PI / 8;
 spectra.forEach(s => s.updateSettingsGPU());
 

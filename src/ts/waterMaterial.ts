@@ -57,7 +57,7 @@ export class WaterMaterial extends ShaderMaterial {
                 "cameraPositionW", "lightDirection",
                 "uTiles", "uAmps", "uGridStep",
                 "showPerlinNoise", "uPerlinStrength",
-                "showNormalMapOverlay", "showTileBorders", "showHexGrid", "showSpectralMixing",
+                "showNormalMapOverlay", "showTileBorders", "showHexGrid", "showHexlMixing",
                 "uGridStep", "uBlendSigma", "uLODSkip",
                 "useWangTiles", "wangMapWidth", "wangMapHeight", "wangPadding", "uGridStep",
                 "showWangColors"
@@ -98,8 +98,8 @@ export class WaterMaterial extends ShaderMaterial {
         this.setTexture("heightMap2", this.heightMap2);     this.setTexture("displacementMap2", this.displacementMap2);
         this.setTexture("heightMap3", this.heightMap3);     this.setTexture("displacementMap3", this.displacementMap3);
 
-        this.setFloat("uGridStep", 15.0);
-        this.setFloat("uBlendSigma", 1.0);
+        this.setFloat("uGridStep", 20);
+        this.setFloat("uBlendSigma", 0.5);
         this.setFloat("uLODSkip", 0.0);
         this.setFloat("showPerlinNoise", 0.0);
         this.setFloat("uPerlinStrength", 0.5);
